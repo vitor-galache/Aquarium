@@ -1,0 +1,111 @@
+# Aquarium — ideias e estudo que ganham profundidade
+
+Oct 15, 2026 · @Vitor
+
+## Visão e problema
+
+Um app open source para capturar ideias, organizar anotações de estudo e, no futuro, desenhar diagramas como os de system design. A experiência é personalizada e usa a metáfora de um aquário: ideias entram pela superfície e ganham profundidade conforme amadurecem.
+
+**Problema:** ferramentas como o Notion exigem decidir a estrutura antes de ter conteúdo. Página em branco, banco de dados, propriedades e pastas fazem a ideia morrer no caminho, e o estudo nunca vira hábito.
+
+**Proposta:** primeiro você joga na água; a organização vem depois e quase sozinha. Capturar leva dois segundos, organizar é opcional e revisar acontece no ritmo certo.
+
+**Princípios**
+
+- Captura sem atrito: nada de título, pasta ou tag obrigatórios.
+- Estrutura emerge do uso, não é imposta no começo.
+- Seus dados são seus: notas em arquivos Markdown numa pasta local.
+- O aquário é informação, não enfeite: a posição de cada ideia diz algo sobre ela.
+- Leve e calmo, com sensação de profundidade.
+
+## Metáfora: profundidade como maturidade
+
+| Camada | O que fica ali | Como chega |
+| --- | --- | --- |
+| Superfície | Ideias soltas, links, frases de aula | Captura rápida |
+| Meia-água | Notas desenvolvidas, com contexto e ligações | Você revisita e escreve mais |
+| Fundo | Conhecimento consolidado: resumos, decisões, explicações | Nota revisada e dominada |
+| Lodo | Ideias esquecidas há muito tempo | Sem interação; nada some, e às vezes uma volta à superfície |
+
+**Outros conceitos**
+
+- **Cardume:** notas relacionadas que nadam juntas, criadas por ligações `[[nota]]` ou sugeridas pelo app.
+- **Corrente:** um assunto maior que agrupa cardumes, como System Design, Freelas ou Inglês.
+- **Maré:** o ciclo de revisão espaçada que traz notas de estudo de volta à superfície no dia certo.
+
+## Telas iniciais
+
+1. **Captura:** um campo único aberto por atalho global. Digitou, apertou Enter, caiu na água.
+2. **Aquário:** visão geral com as ideias distribuídas por profundidade e agrupadas em cardumes e correntes. É onde a experiência visual acontece.
+3. **Nota:** editor Markdown limpo, com ligações para outras notas e indicador de profundidade.
+4. **Maré de estudo:** fila de revisão do dia; você relê a nota e marca se lembrou bem, e o app ajusta a próxima revisão.
+
+## Fluxos principais
+
+- **Capturar:** atalho → digita → a ideia aparece na superfície.
+- **Triagem:** no fim do dia ou da semana, você passa pela superfície e decide para cada ideia: desenvolver (desce para meia-água), juntar com outra (vira cardume) ou deixar afundar.
+- **Estudar:** marca uma nota como estudo → ela entra na maré → reaparece para revisão → com revisões boas, desce até o fundo.
+- **Reencontrar:** busca rápida por qualquer texto, ou navegação pelas correntes no aquário.
+
+## Personalização
+
+- Correntes e cardumes definidos por você, com sugestões automáticas a partir do conteúdo.
+- Ritmo de revisão ajustável por assunto.
+- Temas visuais do aquário, todos dentro da direção leve, calma e profunda.
+- Mais adiante, IA opcional (local ou com sua própria chave) sugerindo ligações e resumos.
+
+Estilo visual: ainda a definir. A direção é algo leve e calmo, que passe a sensação de profundidade, sem precisar ser realista.
+
+## Escala do projeto em níveis
+
+Cada nível entrega algo usável sozinho.
+
+1. **Nível 1 — Captura e aquário.** Atalho de captura, notas em Markdown numa pasta local, aquário com camadas de profundidade, busca.
+2. **Nível 2 — Maré de estudo.** Revisão espaçada para notas marcadas como estudo.
+3. **Nível 3 — Ligações.** Links entre notas, cardumes e correntes, com o grafo de ligações visto como correntes no aquário.
+4. **Nível 4 — Fundo do mar como canvas.** Quadro infinito para desenhos de system design, com caixas, setas e notas presas a elas.
+5. **Nível 5 — Ecossistema.** Sync opcional, app mobile para captura, plugins e IA opcional.
+
+## Open source e referências
+
+O modelo é o de ferramentas como Obsidian e Logseq: as notas são arquivos Markdown numa pasta do usuário. Ninguém fica preso ao app, dá para versionar no git e editar em qualquer editor. Licença sugerida: MIT, para facilitar contribuições.
+
+| Referência | O que observar |
+| --- | --- |
+| Obsidian | Notas como arquivos locais, links entre notas, ecossistema de plugins |
+| Logseq | Captura em fluxo diário, open source |
+| Anki | Revisão espaçada aplicada ao estudo |
+| Excalidraw | Canvas de diagramas open source (MIT), base possível para o nível 4 |
+
+## Stack inicial
+
+Sem terminais embutidos, o app fica mais leve, e o Tauri passa a ser uma opção forte.
+
+| Camada | Escolha | Motivo |
+| --- | --- | --- |
+| Shell desktop | Tauri (ou Electron) | Tauri gera app pequeno e leve; Electron é o caminho mais conhecido |
+| UI | React + TypeScript + Tailwind | Ecossistema amplo de componentes |
+| Editor | CodeMirror 6 ou TipTap | Markdown com boa experiência de escrita |
+| Aquário | Canvas 2D ou PixiJS | Animações leves fora da árvore React |
+| Armazenamento | Arquivos Markdown + índice SQLite | Dados abertos; índice para busca e metadados de profundidade |
+| Revisão espaçada | Algoritmo FSRS | Estado da arte em agendamento de revisões |
+| Canvas (nível 4) | Excalidraw | Open source e maduro |
+
+**Riscos**
+
+- O aquário virar enfeite: ele precisa ajudar a decidir o que revisar, não só ser bonito.
+- Metadados de profundidade fora dos arquivos podem se perder; guardar no frontmatter do Markdown quando possível.
+- Escopo: resistir a virar um Notion; o nível 1 já precisa ser bom sozinho.
+
+## Ideia anterior descartada
+
+A primeira versão do Aquarium era uma IDE de orquestração de agentes inspirada no [Orca](https://github.com/stablyai/orca) e no [Alethe](https://github.com/Kc1t/alethe-agents). Foi descartada por ser complexa demais para começar, difícil de visualizar e, no fim, uma cópia mais simples do que já existe. A metáfora do aquário foi mantida.
+
+## Próximos passos: design e fluxos
+
+- [ ] Fluxo de captura rápida
+- [ ] Layout da tela do aquário e das camadas de profundidade
+- [ ] Tela de nota e indicador de profundidade
+- [ ] Fluxo de triagem da superfície
+- [ ] Fluxo da maré de estudo
+- [ ] Direção visual: paleta, tipografia e animações
