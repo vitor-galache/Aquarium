@@ -1,5 +1,14 @@
 import { useEffect, useState } from "react";
-import { Download, FolderOpen, Moon, Sun, Waves, Zap } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Download,
+  FolderOpen,
+  Moon,
+  Sun,
+  Waves,
+  Zap,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { Bolhas } from "./Bolhas";
@@ -9,11 +18,40 @@ const REPO = "https://github.com/vitor-galache/notesea";
 const RELEASES = `${REPO}/releases/latest`;
 const DOWNLOAD = `${RELEASES}/download`;
 
-// Apple Silicon é o padrão no Mac; Intel fica como link secundário.
-const ARQUIVOS: Record<string, string> = {
-  macOS: `${DOWNLOAD}/Notesea-macos-arm64.dmg`,
-  Linux: `${DOWNLOAD}/Notesea-linux.AppImage`,
-};
+const LINUX = `${DOWNLOAD}/Notesea-linux.AppImage`;
+
+// No Mac a instalação é pelo Homebrew: o app ainda não é notarizado pela
+// Apple e o cask remove a quarentena que faria o Gatekeeper bloqueá-lo.
+const BREW = "brew install --cask vitor-galache/tap/notesea";
+
+function ComandoBrew() {
+  const [copiado, setCopiado] = useState(false);
+  async function copiar() {
+    try {
+      await navigator.clipboard.writeText(BREW);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch {
+      // Sem acesso à área de transferência: o comando segue selecionável.
+    }
+  }
+  return (
+    <div className="mx-auto flex max-w-full items-center gap-2 rounded-full border bg-card/80 py-2 pr-2 pl-5 shadow-lg shadow-brand/20 backdrop-blur sm:w-fit">
+      <code className="min-w-0 truncate font-mono text-sm select-all sm:text-md">
+        {BREW}
+      </code>
+      <Button
+        size="icon"
+        variant="ghost"
+        onClick={copiar}
+        aria-label={copiado ? "Comando copiado" : "Copiar comando"}
+        className="shrink-0 rounded-full"
+      >
+        {copiado ? <Check /> : <Copy />}
+      </Button>
+    </div>
+  );
+}
 
 function sistema() {
   const ua = navigator.userAgent;
@@ -115,28 +153,43 @@ export function App() {
           Um app de anotações leve. Capture em segundos e escreva em Markdown,
           com as notas salvas como arquivos no seu computador.
         </p>
-        <Button
-          size="lg"
-          asChild
-          className="h-12 rounded-full px-7 text-md shadow-lg shadow-brand/30"
-        >
-          <a href={(so && ARQUIVOS[so]) || RELEASES}>
-            <Download /> {so ? `Baixar para ${so}` : "Baixar"}
-          </a>
-        </Button>
+        {so === "macOS" ? (
+          <ComandoBrew />
+        ) : (
+          <Button
+            size="lg"
+            asChild
+            className="h-12 rounded-full px-7 text-md shadow-lg shadow-brand/30"
+          >
+            <a href={so === "Linux" ? LINUX : RELEASES}>
+              <Download /> {so ? `Baixar para ${so}` : "Baixar"}
+            </a>
+          </Button>
+        )}
         <p className="mt-3 text-sm text-muted">
-          macOS e Linux (Windows em breve) ·{" "}
-          {so === "macOS" && (
+          {so === "macOS" ? (
             <>
+              Cole no Terminal (precisa do{" "}
               <a
-                href={`${DOWNLOAD}/Notesea-macos-intel.dmg`}
+                href="https://brew.sh/pt-br/"
                 className="text-brand hover:underline"
               >
-                Mac com Intel
-              </a>{" "}
-              ·{" "}
+                Homebrew
+              </a>
+              ) ·{" "}
+              <a href={LINUX} className="text-brand hover:underline">
+                Linux
+              </a>
             </>
-          )}
+          ) : (
+            <>
+              No Mac:{" "}
+              <code className="font-mono">
+                brew install --cask vitor-galache/tap/notesea
+              </code>
+            </>
+          )}{" "}
+          ·{" "}
           <a href={RELEASES} className="text-brand hover:underline">
             todas as versões
           </a>
