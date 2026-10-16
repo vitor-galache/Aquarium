@@ -8,6 +8,7 @@ import {
   type Vault,
   type VaultConfig,
   type Theme,
+  shortcutKeys,
 } from "../lib/vault";
 
 type Props = {
@@ -57,18 +58,6 @@ function shortcutFrom(event: KeyboardEvent): string | null {
   if (mods.length === 0) return null;
   return [...mods, event.code].join("+");
 }
-
-/** Teclas do atalho: `Ctrl+Shift+Space` → `["Ctrl", "Shift", "Espaço"]`. */
-const shortcutKeys = (shortcut: string) =>
-  shortcut
-    .split("+")
-    .map((part) =>
-      part === "Space"
-        ? "Espaço"
-        : part === "Super"
-          ? "⌘"
-          : part.replace(/^(Key|Digit)/, ""),
-    );
 
 const normalize = (text: string) =>
   text
