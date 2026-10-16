@@ -189,12 +189,15 @@ pub fn start(app: &AppHandle, root: &Path) -> Result<(), String> {
     let status = state.status.clone();
     let app = app.clone();
     let dir = root.to_path_buf();
+    // Lê fora da chamada: o guard temporário viveria até o fim da instrução
+    // e `set_status` travaria no mesmo Mutex (deadlock e tela branca).
+    let note_count = status.lock().unwrap().note_count;
     set_status(
         &app,
         &status,
         IndexStatus {
             indexing: true,
-            note_count: status.lock().unwrap().note_count,
+            note_count,
         },
     );
     thread::spawn(move || {
