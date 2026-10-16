@@ -5,6 +5,7 @@ import { PrimeiroAcesso } from "./pages/PrimeiroAcesso";
 import { NotaAberta } from "./pages/NotaAberta";
 import { Button } from "./components/Button";
 import { CaptureModal } from "./components/CaptureModal";
+import { SearchModal } from "./components/SearchModal";
 import {
   createNote,
   onOpenCapture,
@@ -22,6 +23,7 @@ function App() {
   const [initial, setInitial] = useState<Startup | null>(null);
   const [aquarium, setAquarium] = useState<Aquarium | null>(null);
   const [capturing, setCapturing] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [view, setView] = useState<View>({ kind: "aquario" });
   const [refreshKey, setRefreshKey] = useState(0);
   const [focus, setFocus] = useState(false);
@@ -48,6 +50,19 @@ function App() {
       unlisten.then((fn) => fn());
     };
   }, []);
+
+  // Ctrl/Cmd+K abre a busca rápida de qualquer tela.
+  useEffect(() => {
+    if (!aquarium) return;
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setSearching(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [aquarium]);
 
   if (!initial) return null;
 
@@ -121,10 +136,16 @@ function App() {
             aquarium={aquarium}
             onCapture={() => setCapturing(true)}
             onOpenNote={(path) => setView({ kind: "nota", path })}
-            onSearch={() => setView({ kind: "em-breve", title: "Buscar" })}
+            onSearch={() => setSearching(true)}
           />
         )}
       </main>
+      {searching && (
+        <SearchModal
+          onOpenNote={(path) => setView({ kind: "nota", path })}
+          onClose={() => setSearching(false)}
+        />
+      )}
       {capturing && (
         <CaptureModal
           dir={aquarium.path}
