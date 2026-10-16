@@ -9,10 +9,18 @@ function App() {
   const [aquarium, setAquarium] = useState<Aquarium | null>(null);
 
   useEffect(() => {
-    startup().then((state) => {
-      setInitial(state);
-      setAquarium(state.aquarium);
-    });
+    startup()
+      .then((state) => {
+        setInitial(state);
+        setAquarium(state.aquarium);
+      })
+      .catch((error: unknown) => {
+        setInitial({
+          suggestedPath: null,
+          aquarium: null,
+          error: `Não foi possível iniciar o Aquarium: ${String(error)}`,
+        });
+      });
   }, []);
 
   if (!initial) return null;
