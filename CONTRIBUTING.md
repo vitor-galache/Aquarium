@@ -1,4 +1,4 @@
-# Contribuindo com o Aquarium
+# Contribuindo com o Notesea
 
 ## Fluxo
 

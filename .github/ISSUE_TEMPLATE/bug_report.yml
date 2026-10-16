@@ -22,7 +22,7 @@ body:
     id: ambiente
     attributes:
       label: Sistema operacional e versão do app
-      placeholder: macOS 15, Aquarium 0.1.0
+      placeholder: macOS 15, Notesea 0.1.0
     validations:
       required: true
   - type: textarea

@@ -50,7 +50,7 @@ mod tests {
 
     #[test]
     fn grava_ao_lado_da_nota() {
-        let dir = std::env::temp_dir().join(format!("aquarium-asset-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("notesea-asset-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         let note = dir.join("Minha nota.md");
         let a = save(&note, b"x", "PNG").unwrap();

@@ -1,14 +1,14 @@
-//! Pastas do aquário e a ordem manual do explorador.
+//! Subpastas da pasta de notas e a ordem manual do explorador.
 //!
-//! A ordem fica em `.aquarium/order.json`: para cada pasta (relativa, com `/`),
+//! A ordem fica em `.notesea/order.json`: para cada pasta (relativa, com `/`),
 //! a lista de itens na ordem escolhida — `nome.md` para notas e `nome/` para pastas.
 
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::aquarium::INTERNAL_DIR;
 use crate::index::IndexState;
+use crate::vault::INTERNAL_DIR;
 
 const ORDER_FILE: &str = "order.json";
 
@@ -17,10 +17,10 @@ pub type Order = BTreeMap<String, Vec<String>>;
 fn root(state: &IndexState) -> Result<PathBuf, String> {
     state
         .root()
-        .ok_or_else(|| "Nenhum aquário aberto.".to_string())
+        .ok_or_else(|| "Nenhuma pasta aberta.".to_string())
 }
 
-/// Pastas visíveis do usuário: ignora ocultas (`.aquarium`) e `assets/`.
+/// Pastas visíveis do usuário: ignora ocultas (`.notesea`) e `assets/`.
 fn is_user_dir(name: &str) -> bool {
     !name.starts_with('.') && name != crate::asset::ASSETS_DIR
 }
@@ -54,7 +54,7 @@ pub fn folders(root: &Path) -> Vec<String> {
     out
 }
 
-/// Caminho no disco de uma pasta relativa, sem sair do aquário.
+/// Caminho no disco de uma pasta relativa, sem sair da pasta de notas.
 fn resolve(root: &Path, folder: &str) -> Result<PathBuf, String> {
     folder
         .split('/')
@@ -227,7 +227,7 @@ pub fn move_folder_into(root: &Path, folder: &str, parent: &str) -> Result<Strin
     Ok(new_path)
 }
 
-/// Cria `name` dentro de `parent` (relativo ao aquário) e devolve o caminho relativo.
+/// Cria `name` dentro de `parent` (relativo à pasta de notas) e devolve o caminho relativo.
 pub fn create(root: &Path, parent: &str, name: &str) -> Result<String, String> {
     let name = name.trim();
     if name.is_empty() || name.contains(['/', '\\']) || !is_user_dir(name) || name == ".." {
@@ -353,7 +353,7 @@ mod tests {
 
     #[test]
     fn cria_lista_e_ordena_pastas() {
-        let root = std::env::temp_dir().join(format!("aquarium-folder-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("notesea-folder-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join(INTERNAL_DIR)).unwrap();
         fs::create_dir_all(root.join(".lixeira")).unwrap();

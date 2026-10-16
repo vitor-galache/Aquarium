@@ -1,6 +1,6 @@
 # Formato da nota
 
-Cada nota é um arquivo Markdown comum (`.md`) dentro da pasta do aquário, com um frontmatter YAML mínimo no topo. O arquivo abre normalmente em qualquer editor.
+Cada nota é um arquivo Markdown comum (`.md`) dentro da pasta de notas, com um frontmatter YAML mínimo no topo. O arquivo abre normalmente em qualquer editor.
 
 ```markdown
 ---

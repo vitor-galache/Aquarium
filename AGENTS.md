@@ -1,7 +1,7 @@
 # AGENTS.md
 
-Instruções para agentes de código (Claude Code, Codex, Cursor, Copilot etc.) que trabalham no Aquarium.
-A visão do produto está em [`aquarium.md`](aquarium.md); o fluxo de contribuição em [`CONTRIBUTING.md`](CONTRIBUTING.md).
+Instruções para agentes de código (Claude Code, Codex, Cursor, Copilot etc.) que trabalham no Notesea.
+A visão do produto está em [`notesea.md`](notesea.md); o fluxo de contribuição em [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Stack
 

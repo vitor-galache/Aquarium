@@ -1,6 +1,6 @@
 //! Formato da nota: arquivo Markdown com frontmatter YAML mínimo.
 //!
-//! O frontmatter é tratado linha a linha: só as chaves do Aquarium são lidas e
+//! O frontmatter é tratado linha a linha: só as chaves do Notesea são lidas e
 //! alteradas; qualquer outra linha (de outros apps ou do usuário) é preservada
 //! byte a byte. Veja `docs/formato-da-nota.md`.
 
@@ -510,7 +510,7 @@ fn save(
     let (content, mut doc) = load(path)?;
     if expected.is_some_and(|e| e != doc.body) {
         return Err(format!(
-            "{CONFLICT} o arquivo foi alterado fora do Aquarium."
+            "{CONFLICT} o arquivo foi alterado fora do Notesea."
         ));
     }
     let edited = doc.body != body;
@@ -545,7 +545,7 @@ pub fn read_note(state: tauri::State<IndexState>, path: String) -> Result<Note, 
     open_note(Path::new(&path), state.db().as_ref())
 }
 
-/// Cria uma nota nova na pasta do aquário, com nome derivado do título.
+/// Cria uma nota nova na pasta de notas, com nome derivado do título.
 #[tauri::command]
 pub fn create_note(dir: String, title: String, body: String) -> Result<Note, String> {
     let dir = PathBuf::from(dir);
@@ -800,7 +800,7 @@ mod tests {
         assert_eq!(slugify("Ação: Cache & Filas!"), "acao-cache-filas");
         assert_eq!(slugify("  ?? "), "sem-titulo");
 
-        let dir = std::env::temp_dir().join(format!("aquarium-note-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("notesea-note-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         let a = create_note(
@@ -859,7 +859,7 @@ mod tests {
         assert_eq!(set_title("texto\n", "T"), "# T\n\ntexto\n");
         assert_eq!(set_title("", "T"), "# T\n");
 
-        let dir = std::env::temp_dir().join(format!("aquarium-ciclo-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("notesea-ciclo-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         let a = create_note(

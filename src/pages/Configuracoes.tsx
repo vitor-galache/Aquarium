@@ -3,16 +3,16 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { FolderIcon, SearchIcon } from "../components/Icons";
 import {
   applyTheme,
-  openAquarium,
+  openVault,
   saveConfig,
-  type Aquarium,
-  type AquariumConfig,
+  type Vault,
+  type VaultConfig,
   type Theme,
-} from "../lib/aquarium";
+} from "../lib/vault";
 
 type Props = {
-  aquarium: Aquarium;
-  onChange: (aquarium: Aquarium) => void;
+  vault: Vault;
+  onChange: (vault: Vault) => void;
   onClose: () => void;
 };
 
@@ -80,13 +80,13 @@ const control =
   "h-8 rounded-control border border-line bg-canvas px-3 text-base text-ink outline-none transition-colors focus-visible:border-brand-light disabled:opacity-60";
 
 /** Configurações em tela cheia, no estilo de editores (VS Code, Orca). */
-export function Configuracoes({ aquarium, onChange, onClose }: Props) {
+export function Configuracoes({ vault, onChange, onClose }: Props) {
   const [section, setSection] = useState<Section>("geral");
   const [query, setQuery] = useState("");
   const [recording, setRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const { config } = aquarium;
+  const { config } = vault;
 
   // Esc volta ao app, exceto enquanto grava um atalho.
   useEffect(() => {
@@ -98,12 +98,12 @@ export function Configuracoes({ aquarium, onChange, onClose }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [recording, onClose]);
 
-  async function update(next: AquariumConfig) {
+  async function update(next: VaultConfig) {
     setBusy(true);
     try {
       const saved = await saveConfig(next);
       applyTheme(saved.theme);
-      onChange({ ...aquarium, config: saved });
+      onChange({ ...vault, config: saved });
       setError(null);
     } catch (e) {
       setError(String(e));
@@ -127,13 +127,13 @@ export function Configuracoes({ aquarium, onChange, onClose }: Props) {
   async function changeFolder() {
     const selected = await open({
       directory: true,
-      defaultPath: aquarium.path,
+      defaultPath: vault.path,
       title: "Escolha a pasta das notas",
     });
-    if (typeof selected !== "string" || selected === aquarium.path) return;
+    if (typeof selected !== "string" || selected === vault.path) return;
     setBusy(true);
     try {
-      const opened = await openAquarium(selected);
+      const opened = await openVault(selected);
       applyTheme(opened.config.theme);
       onChange(opened);
       setError(null);
@@ -161,7 +161,7 @@ export function Configuracoes({ aquarium, onChange, onClose }: Props) {
         <div className="flex gap-2">
           <input
             readOnly
-            value={aquarium.path}
+            value={vault.path}
             aria-label="Pasta das notas"
             className={`${control} min-w-0 flex-1 font-mono text-sm`}
           />

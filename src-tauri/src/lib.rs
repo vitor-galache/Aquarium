@@ -1,10 +1,10 @@
-mod aquarium;
 mod asset;
 mod capture;
 mod depth;
 mod folder;
 mod index;
 mod note;
+mod vault;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -14,9 +14,9 @@ pub fn run() {
         .manage(capture::CaptureShortcut::default())
         .setup(|app| Ok(capture::setup(app)?))
         .invoke_handler(tauri::generate_handler![
-            aquarium::startup,
-            aquarium::open_aquarium,
-            aquarium::save_config,
+            vault::startup,
+            vault::open_vault,
+            vault::save_config,
             asset::save_image,
             folder::list_folders,
             folder::create_folder,

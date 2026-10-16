@@ -1,8 +1,8 @@
-//! Índice local em SQLite (`.aquarium/index.db`) e observação da pasta.
+//! Índice local em SQLite (`.notesea/index.db`) e observação da pasta.
 //!
 //! O índice é descartável: os arquivos Markdown são a fonte da verdade e uma
 //! sincronização compara caminho, data de modificação e tamanho para reindexar
-//! só o que mudou. Apagar `.aquarium/` faz o próximo `open` reconstruir tudo.
+//! só o que mudou. Apagar `.notesea/` faz o próximo `open` reconstruir tudo.
 
 use crate::{depth, note};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
@@ -64,7 +64,7 @@ pub struct IndexStatus {
     note_count: usize,
 }
 
-/// Índice do aquário aberto e o observador que o mantém atualizado.
+/// Índice da pasta de notas aberta e o observador que o mantém atualizado.
 struct Session {
     root: PathBuf,
     _watcher: RecommendedWatcher,
@@ -78,7 +78,7 @@ pub struct IndexState {
 }
 
 pub fn open_db(root: &Path) -> Result<Connection, String> {
-    let path = root.join(crate::aquarium::INTERNAL_DIR).join(DB_FILE);
+    let path = root.join(crate::vault::INTERNAL_DIR).join(DB_FILE);
     let conn = Connection::open(&path)
         .map_err(|e| format!("Não foi possível abrir o índice {}: {e}", path.display()))?;
     let err = |e: rusqlite::Error| e.to_string();
@@ -97,7 +97,7 @@ pub fn open_db(root: &Path) -> Result<Connection, String> {
     Ok(conn)
 }
 
-/// Arquivos `.md` da pasta (ignorando ocultos, como `.aquarium/`) com mtime e tamanho.
+/// Arquivos `.md` da pasta (ignorando ocultos, como `.notesea/`) com mtime e tamanho.
 fn scan(dir: &Path, out: &mut HashMap<PathBuf, (i64, i64)>) {
     let Ok(entries) = fs::read_dir(dir) else {
         return;
@@ -126,7 +126,7 @@ fn is_note(path: &Path) -> bool {
         .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
 }
 
-/// Subpasta da nota relativa ao aquário (`""` na raiz), sempre com `/`.
+/// Subpasta da nota relativa à pasta de notas (`""` na raiz), sempre com `/`.
 fn folder_of(root: &Path, path: &Path) -> String {
     path.parent()
         .and_then(|dir| dir.strip_prefix(root).ok())
@@ -245,14 +245,14 @@ fn set_status(app: &AppHandle, status: &Mutex<IndexStatus>, new: IndexStatus) {
     let _ = app.emit(STATUS_EVENT, new);
 }
 
-/// Abre o índice do aquário, indexa em segundo plano e passa a observar a pasta.
+/// Abre o índice da pasta, indexa em segundo plano e passa a observar a pasta.
 pub fn start(app: &AppHandle, root: &Path) -> Result<(), String> {
     let state = app.state::<IndexState>();
     let mut session = state.session.lock().unwrap();
     if session.as_ref().is_some_and(|s| s.root == root) {
         return Ok(());
     }
-    // Encerra o observador anterior antes de abrir outro aquário.
+    // Encerra o observador anterior antes de abrir outra pasta.
     *session = None;
 
     let mut conn = open_db(root)?;
@@ -261,7 +261,7 @@ pub fn start(app: &AppHandle, root: &Path) -> Result<(), String> {
         let relevant = res.is_ok_and(|e| {
             e.paths.iter().any(|p| {
                 !p.components()
-                    .any(|c| c.as_os_str() == crate::aquarium::INTERNAL_DIR)
+                    .any(|c| c.as_os_str() == crate::vault::INTERNAL_DIR)
             })
         });
         if relevant {
@@ -305,7 +305,7 @@ pub fn start(app: &AppHandle, root: &Path) -> Result<(), String> {
             Err(e) => eprintln!("Falha ao indexar {}: {e}", dir.display()),
         };
         run();
-        // O canal fecha quando o observador é descartado (outro aquário aberto).
+        // O canal fecha quando o observador é descartado (outra pasta aberta).
         while rx.recv().is_ok() {
             while rx.recv_timeout(DEBOUNCE).is_ok() {}
             run();
@@ -320,13 +320,13 @@ pub fn start(app: &AppHandle, root: &Path) -> Result<(), String> {
 }
 
 impl IndexState {
-    /// Conexão nova com o índice do aquário aberto, para registrar sinais.
+    /// Conexão nova com o índice da pasta aberta, para registrar sinais.
     pub fn db(&self) -> Option<Connection> {
         let root = self.session.lock().unwrap().as_ref()?.root.clone();
         open_db(&root).ok()
     }
 
-    /// Pasta do aquário aberto.
+    /// Pasta de notas aberta.
     pub fn root(&self) -> Option<PathBuf> {
         Some(self.session.lock().unwrap().as_ref()?.root.clone())
     }
@@ -347,7 +347,7 @@ pub fn index_status(state: tauri::State<IndexState>) -> IndexStatus {
     state.status.lock().unwrap().clone()
 }
 
-/// Resumo de uma nota para os cards do aquário.
+/// Resumo de uma nota para os cards da pasta de notas.
 #[derive(Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct NoteSummary {
@@ -357,7 +357,7 @@ pub struct NoteSummary {
     depth: String,
     corrente: Option<String>,
     cardume: Option<String>,
-    /// Subpasta relativa ao aquário (`""` na raiz).
+    /// Subpasta relativa à pasta de notas (`""` na raiz).
     folder: String,
     tags: Vec<String>,
     created: String,
@@ -395,7 +395,7 @@ pub fn notes(conn: &Connection) -> Result<Vec<NoteSummary>, String> {
 
 #[tauri::command]
 pub fn list_notes(state: tauri::State<IndexState>) -> Result<Vec<NoteSummary>, String> {
-    let conn = state.db().ok_or("Nenhum aquário aberto.")?;
+    let conn = state.db().ok_or("Nenhuma pasta aberta.")?;
     notes(&conn)
 }
 
@@ -452,7 +452,7 @@ pub fn search_notes(
     state: tauri::State<IndexState>,
     query: String,
 ) -> Result<Vec<SearchHit>, String> {
-    let conn = state.db().ok_or("Nenhum aquário aberto.")?;
+    let conn = state.db().ok_or("Nenhuma pasta aberta.")?;
     search(&conn, &query, 30)
 }
 
@@ -462,9 +462,9 @@ mod tests {
 
     #[test]
     fn sincroniza_e_reconstroi() {
-        let root = std::env::temp_dir().join(format!("aquarium-index-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("notesea-index-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        let internal = root.join(crate::aquarium::INTERNAL_DIR);
+        let internal = root.join(crate::vault::INTERNAL_DIR);
         fs::create_dir_all(root.join("sub")).unwrap();
         fs::create_dir_all(&internal).unwrap();
         fs::write(root.join("a.md"), "---\nid: a\ndepth: fundo\n---\n# A\n").unwrap();
@@ -501,7 +501,7 @@ mod tests {
         fs::remove_file(root.join("c.md")).unwrap();
         assert_eq!(sync(&mut conn, &root).unwrap(), 1);
 
-        // Índice descartável: apagar `.aquarium/` e reabrir reconstrói.
+        // Índice descartável: apagar `.notesea/` e reabrir reconstrói.
         drop(conn);
         fs::remove_dir_all(&internal).unwrap();
         fs::create_dir_all(&internal).unwrap();
@@ -514,9 +514,9 @@ mod tests {
 
     #[test]
     fn busca_titulo_e_conteudo_rapido() {
-        let root = std::env::temp_dir().join(format!("aquarium-search-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("notesea-search-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(root.join(crate::aquarium::INTERNAL_DIR)).unwrap();
+        fs::create_dir_all(root.join(crate::vault::INTERNAL_DIR)).unwrap();
         fs::create_dir_all(root.join("estudo")).unwrap();
         fs::write(
             root.join("estudo/peixe.md"),
@@ -561,9 +561,9 @@ mod tests {
 
     #[test]
     fn afunda_no_lodo_e_grava_so_quando_muda() {
-        let root = std::env::temp_dir().join(format!("aquarium-depth-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("notesea-depth-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(root.join(crate::aquarium::INTERNAL_DIR)).unwrap();
+        fs::create_dir_all(root.join(crate::vault::INTERNAL_DIR)).unwrap();
         let velha = "---\nid: v\ncreated: 2020-01-01T00:00:00Z\ndepth: fundo\n---\n# V\n";
         let nova = "---\nid: n\ncreated: 2020-01-01T00:00:00Z\ndepth: superficie\n---\n# N\n";
         fs::write(root.join("v.md"), velha).unwrap();

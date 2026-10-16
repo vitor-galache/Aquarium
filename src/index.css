@@ -2,7 +2,7 @@
 @import "@fontsource-variable/sora";
 @import "tailwindcss";
 
-/* Tokens extraídos do Figma (Aquarium). */
+/* Tokens extraídos do Figma (Notesea). */
 @theme {
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Sora Variable", ui-sans-serif, system-ui, sans-serif;

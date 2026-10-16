@@ -3,7 +3,7 @@ import { Sidebar } from "./layout/Sidebar";
 import { TopBar } from "./layout/TopBar";
 import { ancestors, buildTree, findFolder, folderDir } from "./lib/tree";
 import { useNotes } from "./lib/useNotes";
-import { MeuAquario } from "./pages/MeuAquario";
+import { MinhasNotas } from "./pages/MinhasNotas";
 import { PrimeiroAcesso } from "./pages/PrimeiroAcesso";
 import { NotaAberta, type NotaAbertaHandle } from "./pages/NotaAberta";
 import { Button } from "./components/Button";
@@ -22,12 +22,12 @@ import {
   trashNote,
   onOpenCapture,
   startup,
-  type Aquarium,
+  type Vault,
   type Startup,
-} from "./lib/aquarium";
+} from "./lib/vault";
 
 type View =
-  | { kind: "aquario" }
+  | { kind: "inicio" }
   | { kind: "nota"; path: string }
   | { kind: "em-breve"; title: string };
 
@@ -36,28 +36,28 @@ const rootName = (path: string) =>
 
 function App() {
   const [initial, setInitial] = useState<Startup | null>(null);
-  const [aquarium, setAquarium] = useState<Aquarium | null>(null);
+  const [vault, setVault] = useState<Vault | null>(null);
   const [capturing, setCapturing] = useState(false);
   const [searching, setSearching] = useState(false);
   const [settings, setSettings] = useState(false);
-  const [view, setView] = useState<View>({ kind: "aquario" });
+  const [view, setView] = useState<View>({ kind: "inicio" });
   const [refreshKey, setRefreshKey] = useState(0);
   const openNote = useRef<NotaAbertaHandle>(null);
   /** Pasta aberta no explorador (`""` na raiz). */
   const [folder, setFolder] = useState("");
-  const index = useNotes(aquarium?.path ?? "", refreshKey);
+  const index = useNotes(vault?.path ?? "", refreshKey);
 
   useEffect(() => {
     startup()
       .then((state) => {
         setInitial(state);
-        setAquarium(state.aquarium);
+        setVault(state.vault);
       })
       .catch((error: unknown) => {
         setInitial({
           suggestedPath: null,
-          aquarium: null,
-          error: `Não foi possível iniciar o Aquarium: ${String(error)}`,
+          vault: null,
+          error: `Não foi possível iniciar o Notesea: ${String(error)}`,
         });
       });
   }, []);
@@ -70,12 +70,12 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (aquarium) applyTheme(aquarium.config.theme);
-  }, [aquarium]);
+    if (vault) applyTheme(vault.config.theme);
+  }, [vault]);
 
   // Ctrl/Cmd+K abre a busca rápida de qualquer tela.
   useEffect(() => {
-    if (!aquarium) return;
+    if (!vault) return;
     const onKey = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -84,16 +84,16 @@ function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [aquarium]);
+  }, [vault]);
 
   if (!initial) return null;
 
-  if (!aquarium) {
+  if (!vault) {
     return (
       <PrimeiroAcesso
         initialPath={initial.suggestedPath}
         initialError={initial.error}
-        onOpen={setAquarium}
+        onOpen={setVault}
       />
     );
   }
@@ -101,7 +101,7 @@ function App() {
   const newNote = async () => {
     try {
       const note = await createNote(
-        folderDir(aquarium.path, current?.path ?? ""),
+        folderDir(vault.path, current?.path ?? ""),
         "Nova nota",
         "# Nova nota\n",
       );
@@ -134,10 +134,10 @@ function App() {
   const crumbFolder = openedNote ? openedNote.folder : current.path;
   const goTo = (path: string) => {
     setFolder(path);
-    setView({ kind: "aquario" });
+    setView({ kind: "inicio" });
   };
   const crumbs = [
-    { label: rootName(aquarium.path), onClick: () => goTo("") },
+    { label: rootName(vault.path), onClick: () => goTo("") },
     ...ancestors(crumbFolder).map((path) => ({
       label: path.split("/").pop() ?? path,
       onClick: () => goTo(path),
@@ -162,14 +162,14 @@ function App() {
   if (settings) {
     return (
       <Configuracoes
-        aquarium={aquarium}
+        vault={vault}
         onChange={(next) => {
-          if (next.path !== aquarium.path) {
+          if (next.path !== vault.path) {
             setRefreshKey((k) => k + 1);
             setFolder("");
-            setView({ kind: "aquario" });
+            setView({ kind: "inicio" });
           }
-          setAquarium(next);
+          setVault(next);
         }}
         onClose={() => setSettings(false)}
       />
@@ -179,7 +179,7 @@ function App() {
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       <Sidebar
-        root={aquarium.path}
+        root={vault.path}
         tree={tree}
         currentFolder={crumbFolder}
         activePath={view.kind === "nota" ? view.path : null}
@@ -251,21 +251,21 @@ function App() {
         onTrash={(path) =>
           fileAction(path, async () => {
             await trashNote(path);
-            if (isOpen(path)) setView({ kind: "aquario" });
+            if (isOpen(path)) setView({ kind: "inicio" });
           })
         }
       />
       <main className="flex min-w-0 flex-1 flex-col">
         <TopBar crumbs={crumbs} onSearch={() => setSearching(true)} />
         <div
-          className={`flex flex-1 flex-col overflow-y-auto ${view.kind === "aquario" ? "" : "gap-6 p-8"}`}
+          className={`flex flex-1 flex-col overflow-y-auto ${view.kind === "inicio" ? "" : "gap-6 p-8"}`}
         >
           {view.kind === "nota" ? (
             <NotaAberta
               key={view.path}
               ref={openNote}
               path={view.path}
-              onBack={() => setView({ kind: "aquario" })}
+              onBack={() => setView({ kind: "inicio" })}
               onOpenNote={(path) => {
                 setRefreshKey((k) => k + 1);
                 setView({ kind: "nota", path });
@@ -275,7 +275,7 @@ function App() {
             <div className="flex flex-col items-start gap-4">
               <Button
                 variant="secondary"
-                onClick={() => setView({ kind: "aquario" })}
+                onClick={() => setView({ kind: "inicio" })}
               >
                 ← Notas
               </Button>
@@ -285,8 +285,8 @@ function App() {
               <p className="text-md text-muted">Em breve.</p>
             </div>
           ) : (
-            <MeuAquario
-              root={aquarium.path}
+            <MinhasNotas
+              root={vault.path}
               folder={index.notes ? current : null}
               indexing={index.indexing}
               error={index.error}
@@ -306,7 +306,7 @@ function App() {
       )}
       {capturing && (
         <CaptureModal
-          dir={aquarium.path}
+          dir={vault.path}
           onClose={() => {
             setCapturing(false);
             setRefreshKey((k) => k + 1);

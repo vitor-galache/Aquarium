@@ -9,7 +9,7 @@ import {
   type IndexStatus,
   type Order,
   type NoteSummary,
-} from "./aquarium";
+} from "./vault";
 
 /** Notas do índice, recarregadas a cada sincronização ou mudança do app. */
 export function useNotes(root: string, refreshKey: number) {

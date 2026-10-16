@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { captureIdea } from "../lib/aquarium";
+import { captureIdea } from "../lib/vault";
 
 type Props = {
   dir: string;
