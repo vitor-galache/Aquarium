@@ -13,6 +13,7 @@ use std::fs;
 use std::hash::{BuildHasher, Hasher};
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const DELIMITER: &str = "---";
@@ -440,7 +441,10 @@ pub fn write_atomic(path: &Path, content: &str) -> Result<(), String> {
         .file_name()
         .and_then(|n| n.to_str())
         .ok_or("Caminho de nota inválido.")?;
-    let tmp = dir.join(format!(".{name}.{}.tmp", std::process::id()));
+    // Contador no nome: gravações simultâneas não disputam o mesmo temporário.
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    let n = NEXT.fetch_add(1, Ordering::Relaxed);
+    let tmp = dir.join(format!(".{name}.{}.{n}.tmp", std::process::id()));
     let result = (|| {
         let mut file = fs::File::create(&tmp)?;
         file.write_all(content.as_bytes())?;
@@ -542,12 +546,26 @@ pub fn write_depth(path: &Path, depth: &str) -> Result<(), String> {
 
 #[tauri::command]
 pub fn read_note(state: tauri::State<IndexState>, path: String) -> Result<Note, String> {
+    state.ensure_note(Path::new(&path))?;
     open_note(Path::new(&path), state.db().as_ref())
 }
 
 /// Cria uma nota nova na pasta de notas, com nome derivado do título.
 #[tauri::command]
-pub fn create_note(dir: String, title: String, body: String) -> Result<Note, String> {
+pub fn create_note(
+    state: tauri::State<IndexState>,
+    dir: String,
+    title: String,
+    body: String,
+) -> Result<Note, String> {
+    let path = PathBuf::from(&dir);
+    if state.root().as_deref() != Some(path.as_path()) {
+        state.ensure_inside(&path)?;
+    }
+    create(dir, title, body)
+}
+
+fn create(dir: String, title: String, body: String) -> Result<Note, String> {
     let dir = PathBuf::from(dir);
     let path = free_path(&dir, &slugify(&title))?;
     let mut doc = Document {
@@ -571,6 +589,7 @@ pub fn save_note(
     cardume: Option<String>,
     tags: Option<Vec<String>>,
 ) -> Result<Note, String> {
+    state.ensure_note(Path::new(&path))?;
     save(
         Path::new(&path),
         body,
@@ -584,8 +603,9 @@ pub fn save_note(
 
 /// Lê a nota como está no disco, sem registrar abertura nem reescrever nada.
 #[tauri::command]
-pub fn peek_note(path: String) -> Result<Note, String> {
+pub fn peek_note(state: tauri::State<IndexState>, path: String) -> Result<Note, String> {
     let path = Path::new(&path);
+    state.ensure_note(path)?;
     Ok(load(path)?.1.to_note(path))
 }
 
@@ -593,6 +613,7 @@ pub fn peek_note(path: String) -> Result<Note, String> {
 #[tauri::command]
 pub fn bring_to_surface(state: tauri::State<IndexState>, path: String) -> Result<Note, String> {
     let path = Path::new(&path);
+    state.ensure_note(path)?;
     let (content, mut doc) = load(path)?;
     doc.complete();
     if let Some(conn) = state.db().as_ref() {
@@ -691,6 +712,7 @@ pub fn rename_note(
     path: String,
     title: String,
 ) -> Result<Note, String> {
+    state.ensure_note(Path::new(&path))?;
     let note = rename(Path::new(&path), &title)?;
     state.resync();
     Ok(note)
@@ -698,6 +720,7 @@ pub fn rename_note(
 
 #[tauri::command]
 pub fn duplicate_note(state: tauri::State<IndexState>, path: String) -> Result<Note, String> {
+    state.ensure_note(Path::new(&path))?;
     let note = duplicate(Path::new(&path))?;
     state.resync();
     Ok(note)
@@ -705,6 +728,7 @@ pub fn duplicate_note(state: tauri::State<IndexState>, path: String) -> Result<N
 
 #[tauri::command]
 pub async fn trash_note(state: tauri::State<'_, IndexState>, path: String) -> Result<(), String> {
+    state.ensure_note(Path::new(&path))?;
     trash(Path::new(&path))?;
     state.resync();
     Ok(())
@@ -803,13 +827,13 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("notesea-note-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
-        let a = create_note(
+        let a = create(
             dir.display().to_string(),
             "Cache".into(),
             "# Cache\n".into(),
         )
         .unwrap();
-        let b = create_note(
+        let b = create(
             dir.display().to_string(),
             "cache".into(),
             "# Cache\n".into(),
@@ -862,7 +886,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("notesea-ciclo-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
-        let a = create_note(
+        let a = create(
             dir.display().to_string(),
             "Cache".into(),
             "---\ntags: [x]\n---\n# Cache\n\ncorpo\n".into(),

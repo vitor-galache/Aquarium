@@ -158,9 +158,10 @@ pub fn move_into(root: &Path, note: &Path, folder: &str) -> Result<PathBuf, Stri
     if !dir.is_dir() {
         return Err(format!("A pasta {folder} não existe."));
     }
-    if !note.starts_with(root) || !note.is_file() {
+    if !note.is_file() {
         return Err("Nota inválida.".into());
     }
+    crate::index::ensure_inside(root, note)?;
     let from = note.parent().ok_or("Nota inválida.")?;
     if from == dir {
         return Ok(note.to_path_buf());
@@ -175,7 +176,7 @@ pub fn move_into(root: &Path, note: &Path, folder: &str) -> Result<PathBuf, Stri
     if moved == text {
         fs::rename(note, &target).map_err(|e| format!("Não foi possível mover a nota: {e}"))?;
     } else {
-        fs::write(&target, moved).map_err(|e| format!("Não foi possível mover a nota: {e}"))?;
+        crate::note::write_atomic(&target, &moved)?;
         fs::remove_file(note).map_err(|e| format!("Não foi possível mover a nota: {e}"))?;
     }
     Ok(target)

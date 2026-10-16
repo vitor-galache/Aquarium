@@ -27,6 +27,8 @@ import {
 export type NotaAbertaHandle = {
   /** Grava o pendente e congela o autosave antes de mexer no arquivo. */
   run: (action: () => Promise<void>) => Promise<void>;
+  /** Grava o que estiver pendente (ex.: antes de sair do app). */
+  flush: () => Promise<void>;
 };
 
 type Props = {
@@ -185,6 +187,10 @@ export function NotaAberta({ ref, path, onBack, onOpenNote }: Props) {
   };
 
   useImperativeHandle(ref, () => ({
+    flush: () => {
+      window.clearTimeout(timer.current);
+      return save();
+    },
     run: async (action) => {
       await save();
       if (conflict.current) return;
@@ -218,7 +224,7 @@ export function NotaAberta({ ref, path, onBack, onOpenNote }: Props) {
   };
 
   const pasteImage = async (file: File) => {
-    const extension = file.type.split("/")[1].replace("svg+xml", "svg");
+    const extension = file.type.split("/")[1];
     try {
       return await saveImage(path, file, extension.replace("jpeg", "jpg"));
     } catch (e) {

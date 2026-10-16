@@ -18,6 +18,8 @@ import {
   renameNote,
   trashNote,
   onOpenCapture,
+  onQuitRequested,
+  quitApp,
   openVault,
   startup,
   type Vault,
@@ -79,8 +81,13 @@ function App() {
 
   useEffect(() => {
     const unlisten = onOpenCapture(() => setCapturing(true));
+    const unlistenQuit = onQuitRequested(() => {
+      const flush = openNote.current?.flush() ?? Promise.resolve();
+      void flush.finally(() => void quitApp());
+    });
     return () => {
       unlisten.then((fn) => fn());
+      unlistenQuit.then((fn) => fn());
     };
   }, []);
 

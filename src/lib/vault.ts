@@ -161,6 +161,12 @@ export const captureIdea = (dir: string, text: string) => {
 export const onOpenCapture = (handler: () => void) =>
   listen("open-capture", () => handler());
 
+/** Pedido para sair (bandeja ou ⌘Q): grava o pendente e chama `quitApp`. */
+export const onQuitRequested = (handler: () => void) =>
+  listen("quit-requested", () => handler());
+
+export const quitApp = () => invoke("quit_app");
+
 /** Resultado da busca; `snippet` marca os termos entre `\u0001` e `\u0002`. */
 export type SearchHit = {
   path: string;

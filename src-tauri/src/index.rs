@@ -255,6 +255,11 @@ pub fn start(app: &AppHandle, root: &Path) -> Result<(), String> {
     // Encerra o observador anterior antes de abrir outra pasta.
     *session = None;
 
+    // O webview só lê arquivos (imagens) da pasta aberta.
+    app.asset_protocol_scope()
+        .allow_directory(root, true)
+        .map_err(|e| format!("Não foi possível liberar a pasta: {e}"))?;
+
     let mut conn = open_db(root)?;
     let (tx, rx) = mpsc::channel::<()>();
     let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
@@ -331,6 +336,24 @@ impl IndexState {
         Some(self.session.lock().unwrap().as_ref()?.root.clone())
     }
 
+    /// Confere que `path` existe dentro da pasta aberta (resolvendo `..` e
+    /// links), para os comandos não tocarem em arquivos de fora dela.
+    pub fn ensure_inside(&self, path: &Path) -> Result<(), String> {
+        let root = self.root().ok_or("Nenhuma pasta aberta.")?;
+        ensure_inside(&root, path)
+    }
+
+    /// Como `ensure_inside`, exigindo uma nota `.md`.
+    pub fn ensure_note(&self, path: &Path) -> Result<(), String> {
+        let is_md = path
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("md"));
+        if !is_md {
+            return Err("Nota inválida.".into());
+        }
+        self.ensure_inside(path)
+    }
+
     /// Reindexa já, para a lista refletir na hora uma mudança feita pelo app.
     pub fn resync(&self) {
         let Some(root) = self.root() else { return };
@@ -338,6 +361,18 @@ impl IndexState {
         if let Err(e) = result {
             eprintln!("Falha ao indexar {}: {e}", root.display());
         }
+    }
+}
+
+/// Confere que `path` existe dentro de `root`, comparando os caminhos reais.
+pub fn ensure_inside(root: &Path, path: &Path) -> Result<(), String> {
+    let invalid = || format!("Caminho fora da pasta aberta: {}", path.display());
+    let root = root.canonicalize().map_err(|_| invalid())?;
+    let path = path.canonicalize().map_err(|_| invalid())?;
+    if path != root && path.starts_with(&root) {
+        Ok(())
+    } else {
+        Err(invalid())
     }
 }
 
@@ -459,6 +494,21 @@ pub fn search_notes(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn so_aceita_caminhos_dentro_da_pasta() {
+        let base = std::env::temp_dir().join(format!("notesea-inside-{}", std::process::id()));
+        let root = base.join("notas");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("a.md"), "x").unwrap();
+        fs::write(base.join("fora.md"), "x").unwrap();
+        assert!(ensure_inside(&root, &root.join("a.md")).is_ok());
+        assert!(ensure_inside(&root, &root.join("../fora.md")).is_err());
+        assert!(ensure_inside(&root, &base.join("fora.md")).is_err());
+        assert!(ensure_inside(&root, &root).is_err());
+        assert!(ensure_inside(&root, &root.join("nao-existe.md")).is_err());
+        fs::remove_dir_all(&base).unwrap();
+    }
 
     #[test]
     fn sincroniza_e_reconstroi() {
