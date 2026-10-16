@@ -18,6 +18,7 @@ pub fn run() {
             note::read_note,
             note::create_note,
             note::save_note,
+            note::peek_note,
             note::bring_to_surface
         ])
         .build(tauri::generate_context!())

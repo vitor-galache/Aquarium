@@ -83,6 +83,7 @@ export function DesenvolverIdeias({ onBack, onOpenNote }: Props) {
       const saved = await saveNote(
         current.path,
         body,
+        note.body,
         change.corrente ?? note.corrente,
         change.cardume ?? note.cardume,
       );

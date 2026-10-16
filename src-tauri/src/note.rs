@@ -425,15 +425,26 @@ fn open_note(path: &Path, db: Option<&Connection>) -> Result<Note, String> {
     Ok(doc.to_note(path))
 }
 
+/// Prefixo do erro devolvido quando o arquivo mudou fora do app.
+const CONFLICT: &str = "conflito:";
+
 /// Salva corpo e metadados; a profundidade é sempre calculada, nunca escolhida.
+/// Com `expected`, recusa salvar se o corpo no disco não for o que o editor
+/// conhecia (edição externa), para não sobrescrever o trabalho de outro app.
 fn save(
     path: &Path,
     body: String,
+    expected: Option<String>,
     corrente: Option<String>,
     cardume: Option<String>,
     db: Option<&Connection>,
 ) -> Result<Note, String> {
     let (content, mut doc) = load(path)?;
+    if expected.is_some_and(|e| e != doc.body) {
+        return Err(format!(
+            "{CONFLICT} o arquivo foi alterado fora do Aquarium."
+        ));
+    }
     let edited = doc.body != body;
     doc.body = body;
     doc.complete();
@@ -484,16 +495,25 @@ pub fn save_note(
     state: tauri::State<IndexState>,
     path: String,
     body: String,
+    expected: Option<String>,
     corrente: Option<String>,
     cardume: Option<String>,
 ) -> Result<Note, String> {
     save(
         Path::new(&path),
         body,
+        expected,
         corrente,
         cardume,
         state.db().as_ref(),
     )
+}
+
+/// Lê a nota como está no disco, sem registrar abertura nem reescrever nada.
+#[tauri::command]
+pub fn peek_note(path: String) -> Result<Note, String> {
+    let path = Path::new(&path);
+    Ok(load(path)?.1.to_note(path))
 }
 
 /// "Trazer à superfície": tira a nota do lodo sem precisar abri-la.
@@ -603,6 +623,7 @@ mod tests {
         let saved = save(
             Path::new(&b.path),
             "novo\n".into(),
+            Some(b.body.clone()),
             Some("Infra".into()),
             None,
             None,
@@ -611,6 +632,15 @@ mod tests {
         assert_eq!(saved.depth, "superficie");
         assert_eq!(saved.corrente.as_deref(), Some("Infra"));
         assert_eq!(open_note(Path::new(&b.path), None).unwrap(), saved);
+        let conflict = save(
+            Path::new(&b.path),
+            "x\n".into(),
+            Some("velho\n".into()),
+            None,
+            None,
+            None,
+        );
+        assert!(conflict.unwrap_err().starts_with(CONFLICT));
         assert!(
             fs::read_dir(&dir).unwrap().all(|e| !e
                 .unwrap()
