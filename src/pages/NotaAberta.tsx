@@ -6,7 +6,7 @@ import {
   useState,
   type Ref,
 } from "react";
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, BookOpenIcon, PencilIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MarkdownEditor } from "../components/MarkdownEditor";
 import { replaceEditorText } from "../lib/editor";
@@ -51,6 +51,17 @@ const dirName = (path: string) => path.slice(0, path.search(/[\\/][^\\/]*$/));
 
 const stem = (path: string) => fileName(path).replace(/\.md$/i, "");
 
+const READING_KEY = "notesea:leitura";
+
+/** Lembra o último modo (leitura/edição) entre notas e aberturas do app. */
+function initialReading() {
+  try {
+    return localStorage.getItem(READING_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 const time = (date: Date) =>
   date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
@@ -61,6 +72,7 @@ export function NotaAberta({ ref, path, onBack, onOpenNote }: Props) {
   const [status, setStatus] = useState<Status>("salvo");
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [words, setWords] = useState(0);
+  const [reading, setReading] = useState(initialReading);
   const notes = useRef<NoteSummary[]>([]);
   const editorArea = useRef<HTMLDivElement>(null);
   // Estado mais recente para o autosave, sem recriar timers a cada tecla.
@@ -151,6 +163,30 @@ export function NotaAberta({ ref, path, onBack, onOpenNote }: Props) {
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => void save(), AUTOSAVE_MS);
   }, [save]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(READING_KEY, reading ? "1" : "0");
+    } catch {
+      // Sem armazenamento: o modo vale só até fechar o app.
+    }
+  }, [reading]);
+
+  // Cmd/Ctrl+Shift+V alterna entre ler e editar (como no VS Code).
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        event.shiftKey &&
+        event.key.toLowerCase() === "v"
+      ) {
+        event.preventDefault();
+        setReading((r) => !r);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Ao sair da nota, grava o que ainda estiver pendente.
   useEffect(() => () => void save(), [save]);
@@ -262,6 +298,15 @@ export function NotaAberta({ ref, path, onBack, onOpenNote }: Props) {
             <span className="text-danger">Não foi possível salvar</span>
           ) : null}
         </span>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setReading(!reading)}
+          title={`${reading ? "Editar" : "Ler"} (⌘⇧V / Ctrl+Shift+V)`}
+        >
+          {reading ? <PencilIcon /> : <BookOpenIcon />}
+          {reading ? "Editar" : "Ler"}
+        </Button>
       </div>
 
       {error && (
@@ -291,6 +336,7 @@ export function NotaAberta({ ref, path, onBack, onOpenNote }: Props) {
             linkTargets={() => notes.current.map((n) => n.title)}
             onOpenLink={(target) => void openLink(target)}
             onPasteImage={pasteImage}
+            reading={reading}
             onChange={(value) => {
               text.current = value;
               setWords(countWords(value));
