@@ -14,7 +14,6 @@ import {
   GearIcon,
   NewFileIcon,
   NewFolderIcon,
-  UpDownIcon,
 } from "../components/Icons";
 import { ancestors, countNotes, type Folder, type Item } from "../lib/tree";
 
@@ -336,25 +335,16 @@ export function Sidebar({
         </span>
       </button>
 
-      <button
-        type="button"
-        onClick={onSettings}
-        title="Trocar de pasta"
-        className="mx-2.5 mb-2.5 flex cursor-pointer items-center gap-2.5 rounded-control px-2.5 py-2 text-left transition-colors hover:bg-highlight/60 focus-visible:outline-2 focus-visible:outline-brand-light"
-      >
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-[7px] bg-highlight text-brand-light">
+      <div className="flex items-center gap-1 py-1.5 pr-2.5 pl-2.5">
+        <button
+          type="button"
+          onClick={onSettings}
+          title={`${folderName(root)}\n${root}`}
+          aria-label={`Pasta aberta: ${folderName(root)}. Trocar de pasta`}
+          className={`${iconButton} text-brand-light`}
+        >
           <FolderIcon />
-        </span>
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="text-base font-medium text-ink">
-            {folderName(root)}
-          </span>
-          <span className="truncate font-mono text-2xs text-muted">{root}</span>
-        </span>
-        <UpDownIcon className="shrink-0 text-muted" />
-      </button>
-
-      <div className="flex items-center py-1.5 pr-2.5 pl-[18px]">
+        </button>
         <h2 className="flex-1 text-2xs font-semibold tracking-widest text-muted uppercase">
           Arquivos
         </h2>
