@@ -16,3 +16,29 @@ export const startup = () => invoke<Startup>("startup");
 
 export const openAquarium = (path: string) =>
   invoke<Aquarium>("open_aquarium", { path });
+
+export type Depth = "superficie" | "meia-agua" | "fundo" | "lodo";
+
+export type Note = {
+  path: string;
+  id: string;
+  created: string;
+  depth: Depth;
+  corrente: string | null;
+  cardume: string | null;
+  title: string;
+  body: string;
+};
+
+export const readNote = (path: string) => invoke<Note>("read_note", { path });
+
+export const createNote = (dir: string, title: string, body: string) =>
+  invoke<Note>("create_note", { dir, title, body });
+
+export const saveNote = (
+  path: string,
+  body: string,
+  depth: Depth,
+  corrente: string | null,
+  cardume: string | null,
+) => invoke<Note>("save_note", { path, body, depth, corrente, cardume });
