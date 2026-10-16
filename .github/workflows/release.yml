@@ -1,7 +1,7 @@
 name: Release
 
 # Dispara ao enviar uma tag de versão (ex.: v0.1.0). Gera os instaladores de
-# macOS (Apple Silicon e Intel), Windows e Linux e os anexa a uma release em
+# macOS (Apple Silicon e Intel) e Linux e os anexa a uma release em
 # rascunho no GitHub — revisar o changelog e publicar manualmente.
 on:
   push:
@@ -33,8 +33,6 @@ jobs:
             args: ""
             bundle: src-tauri/target/release/bundle/appimage/*.AppImage
             stable: Notesea-linux.AppImage
-          - platform: windows-latest
-            args: ""
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v7
@@ -63,7 +61,7 @@ jobs:
           releaseBody: |
             Baixe o instalador do seu sistema em **Assets**.
 
-            > Os builds ainda não são assinados. No macOS, abra com clique direito → **Abrir** na primeira vez (ou rode `xattr -cr /Applications/Notesea.app`). No Windows, clique em **Mais informações → Executar assim mesmo** no SmartScreen.
+            > O app ainda não é notarizado pela Apple. No macOS, se aparecer o aviso de desenvolvedor não identificado, vá em **Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim** (ou rode `xattr -cr /Applications/Notesea.app`).
           generateReleaseNotes: true
           releaseDraft: true
           prerelease: false
