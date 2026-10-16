@@ -13,6 +13,17 @@ Usando o app até a tarefa 10, os conceitos de **cardume**, **desenvolver ideia*
 
 As seções abaixo descrevem a visão original e valem como histórico onde conflitarem com esta.
 
+## Ideias futuras
+
+Fora do escopo da primeira versão; registradas para não se perderem.
+
+- **Exportar para PDF:** uma nota ou uma pasta inteira, mantendo a formatação do Markdown.
+- **Dashboards:** visões geradas a partir das notas (ex.: progresso de estudo, contagens por pasta/tag, atividade ao longo do tempo).
+- **Mapas mentais:** gerar um mapa a partir de uma nota (títulos e listas) ou das ligações `[[nota]]` entre notas.
+- **Gota flutuante:** atalho visual na tela para a captura rápida, além da gota no menu do sistema (#57).
+
+Primeiro caso de uso real: o próprio autor usando o app nos estudos de inglês.
+
 ## Visão e problema
 
 Um app open source para capturar ideias, organizar anotações de estudo e, no futuro, desenhar diagramas como os de system design. A experiência é personalizada e usa a metáfora de um aquário: ideias entram pela superfície e ganham profundidade conforme amadurecem.
