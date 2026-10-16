@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { EditorState, type Range } from "@codemirror/state";
+import { Compartment, EditorState, Facet, type Range } from "@codemirror/state";
 import {
   Decoration,
   EditorView,
@@ -15,7 +15,7 @@ import {
   syntaxHighlighting,
   syntaxTree,
 } from "@codemirror/language";
-import { markdown } from "@codemirror/lang-markdown";
+import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { tags } from "@lezer/highlight";
 import {
   autocompletion,
@@ -34,9 +34,23 @@ type Props = {
   onOpenLink: (target: string) => void;
   /** Grava a imagem colada e devolve o caminho relativo à nota. */
   onPasteImage: (file: File) => Promise<string>;
+  /** Modo leitura: só exibe o Markdown formatado, sem marcações nem edição. */
+  reading?: boolean;
 };
 
-type Callbacks = Omit<Props, "value">;
+type Callbacks = Omit<Props, "value" | "reading">;
+
+/** Se o editor está em modo leitura (lido pela prévia ao vivo). */
+const readingMode = Facet.define<boolean, boolean>({
+  combine: (values) => values.some(Boolean),
+});
+
+/** Leitura: sem edição, sem cursor e com tudo formatado. */
+const readingExtensions = (reading: boolean) => [
+  readingMode.of(reading),
+  EditorState.readOnly.of(reading),
+  EditorView.editable.of(!reading),
+];
 
 /** Marcas que somem quando o cursor não está no trecho. */
 const HIDDEN_MARKS = new Set([
@@ -84,18 +98,54 @@ class ImageWidget extends WidgetType {
   }
 }
 
+class BulletWidget extends WidgetType {
+  eq() {
+    return true;
+  }
+  toDOM() {
+    const span = document.createElement("span");
+    span.textContent = "•";
+    span.className = "cm-bullet";
+    return span;
+  }
+}
+
+/** Caixa de tarefa da leitura; o clique marca/desmarca no arquivo. */
+class TaskWidget extends WidgetType {
+  constructor(readonly checked: boolean) {
+    super();
+  }
+  eq(other: TaskWidget) {
+    return other.checked === this.checked;
+  }
+  toDOM() {
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = this.checked;
+    box.className = "cm-task";
+    return box;
+  }
+  ignoreEvent() {
+    return false;
+  }
+}
+
+const bullet = Decoration.replace({ widget: new BulletWidget() });
+
 /**
  * Prévia ao vivo: o Markdown aparece formatado e as marcações (`#`, `**`…)
  * só reaparecem na linha em que o cursor está, para poder editá-las.
  */
 function livePreview(view: EditorView, baseDir: string): DecorationSet {
   const { state } = view;
+  const reading = state.facet(readingMode);
   const active = new Set<number>();
-  for (const range of state.selection.ranges) {
-    const first = state.doc.lineAt(range.from).number;
-    const last = state.doc.lineAt(range.to).number;
-    for (let n = first; n <= last; n++) active.add(n);
-  }
+  if (!reading)
+    for (const range of state.selection.ranges) {
+      const first = state.doc.lineAt(range.from).number;
+      const last = state.doc.lineAt(range.to).number;
+      for (let n = first; n <= last; n++) active.add(n);
+    }
   const decorations: Range<Decoration>[] = [];
   for (const { from, to } of view.visibleRanges) {
     syntaxTree(state).iterate({
@@ -126,6 +176,43 @@ function livePreview(view: EditorView, baseDir: string): DecorationSet {
             ),
           );
           return false;
+        }
+        if (reading) {
+          // `[texto](url)`: fica só o texto, com cara de link.
+          if (node.name === "LinkMark" || node.name === "URL") {
+            const parent = node.node.parent?.name;
+            if (parent === "Link") {
+              decorations.push(hide.range(node.from, node.to));
+              return;
+            }
+          }
+          if (node.name === "QuoteMark") {
+            let end = node.to;
+            if (state.sliceDoc(end, end + 1) === " ") end++;
+            decorations.push(hide.range(node.from, end));
+            return;
+          }
+          if (node.name === "TaskMarker") {
+            const checked = /x/i.test(state.sliceDoc(node.from, node.to));
+            decorations.push(
+              Decoration.replace({ widget: new TaskWidget(checked) }).range(
+                node.from,
+                node.to,
+              ),
+            );
+            return;
+          }
+          if (node.name === "ListMark") {
+            const item = state.sliceDoc(node.to, node.to + 5);
+            const mark = state.sliceDoc(node.from, node.to);
+            // Tarefas mostram só a caixa; listas com `-`/`*`/`+` viram `•`.
+            if (/^ \[[ xX]\]/.test(item)) {
+              decorations.push(hide.range(node.from, node.to + 1));
+            } else if (/^[-*+]$/.test(mark)) {
+              decorations.push(bullet.range(node.from, node.to));
+            }
+            return;
+          }
         }
         if (!HIDDEN_MARKS.has(node.name)) return;
         const line = state.doc.lineAt(node.from);
@@ -162,7 +249,13 @@ const livePreviewPlugin = (baseDir: string) =>
         this.decorations = livePreview(view, baseDir);
       }
       update(update: ViewUpdate) {
-        if (update.docChanged || update.selectionSet || update.viewportChanged)
+        if (
+          update.docChanged ||
+          update.selectionSet ||
+          update.viewportChanged ||
+          update.startState.facet(readingMode) !==
+            update.state.facet(readingMode)
+        )
           this.decorations = livePreview(update.view, baseDir);
       }
     },
@@ -222,6 +315,14 @@ const theme = EditorView.theme({
     textDecoration: "underline",
     textUnderlineOffset: "3px",
   },
+  ".cm-bullet": { color: "var(--color-brand)" },
+  ".cm-task": {
+    margin: "0 6px 0 0",
+    verticalAlign: "-2px",
+    accentColor: "var(--color-brand)",
+    cursor: "pointer",
+  },
+  "&.cm-reading .cm-content": { caretColor: "transparent", cursor: "default" },
   ".cm-image": {
     display: "block",
     maxWidth: "100%",
@@ -239,10 +340,11 @@ const theme = EditorView.theme({
 });
 
 /** Editor Markdown (CodeMirror 6). Não controlado: `value` só vale ao montar. */
-export function MarkdownEditor({ value, ...props }: Props) {
+export function MarkdownEditor({ value, reading = false, ...props }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const callbacks = useRef<Callbacks>(props);
+  const mode = useRef(new Compartment());
 
   useEffect(() => {
     callbacks.current = props;
@@ -256,8 +358,12 @@ export function MarkdownEditor({ value, ...props }: Props) {
         extensions: [
           history(),
           keymap.of([...formattingKeymap, ...defaultKeymap, ...historyKeymap]),
-          markdown(),
+          markdown({ base: markdownLanguage }),
           syntaxHighlighting(highlight),
+          mode.current.of(readingExtensions(reading)),
+          EditorView.editorAttributes.compute([readingMode], (state) => ({
+            class: state.facet(readingMode) ? "cm-reading" : "",
+          })),
           livePreviewPlugin(props.baseDir),
           autocompletion({
             override: [
@@ -284,6 +390,20 @@ export function MarkdownEditor({ value, ...props }: Props) {
             // na linha em edição, só com ⌘/Ctrl.
             mousedown: (event, editor) => {
               const target = event.target as HTMLElement;
+              if (target.classList.contains("cm-task")) {
+                event.preventDefault();
+                const pos = editor.posAtDOM(target);
+                const marker = editor.state.sliceDoc(pos, pos + 3);
+                if (!/^\[[ xX]\]$/.test(marker)) return true;
+                editor.dispatch({
+                  changes: {
+                    from: pos + 1,
+                    to: pos + 2,
+                    insert: marker[1] === " " ? "x" : " ",
+                  },
+                });
+                return true;
+              }
               if (!target.closest(".cm-wikilink")) return false;
               const pos = editor.posAtDOM(target);
               const line = editor.state.doc.lineAt(pos).number;
@@ -292,7 +412,9 @@ export function MarkdownEditor({ value, ...props }: Props) {
                   editor.state.doc.lineAt(r.from).number <= line &&
                   editor.state.doc.lineAt(r.to).number >= line,
               );
-              if (editing && !(event.metaKey || event.ctrlKey)) return false;
+              const reading = editor.state.facet(readingMode);
+              if (editing && !reading && !(event.metaKey || event.ctrlKey))
+                return false;
               const link = linkAt(editor, pos);
               if (!link) return false;
               event.preventDefault();
@@ -329,11 +451,18 @@ export function MarkdownEditor({ value, ...props }: Props) {
       }),
     });
     view.current = editor;
-    editor.focus();
+    if (!reading) editor.focus();
     return () => editor.destroy();
     // O documento inicial só importa na montagem; trocas vêm por `replace`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    view.current?.dispatch({
+      effects: mode.current.reconfigure(readingExtensions(reading)),
+    });
+    if (!reading) view.current?.focus();
+  }, [reading]);
 
   return <div ref={host} className="min-h-[50vh]" data-editor />;
 }
