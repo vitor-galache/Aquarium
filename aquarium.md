@@ -2,6 +2,17 @@
 
 Oct 15, 2026 · @Vitor
 
+## Mudança de direção (16 out 2026)
+
+Usando o app até a tarefa 10, os conceitos de **cardume**, **desenvolver ideia** (triagem) e camadas de profundidade deixaram a experiência confusa e pouco intuitiva. A partir de agora:
+
+- **Foco:** o Aquarium é, antes de tudo, um **app de anotações**. A prioridade é deixar a criação e a edição de notas boas: captura rápida, editor Markdown agradável, busca e organização simples.
+- **Tema só na aparência:** a temática de aquário continua (paleta, tipografia, animações, nomes leves), mas não pode atrapalhar nem impor fluxos ao uso. Nada de passos obrigatórios ou conceitos que o usuário precise aprender.
+- **Pausados:** cardumes, correntes, fluxo guiado de "desenvolver ideia", profundidade como estado da nota e maré de estudo saem do roadmap por enquanto. O código existente pode ser simplificado ou escondido da UI; podem voltar depois, se fizerem sentido, como recursos opcionais.
+- **Mantidos:** dados em arquivos Markdown locais, captura sem atrito, leve e calmo.
+
+As seções abaixo descrevem a visão original e valem como histórico onde conflitarem com esta.
+
 ## Visão e problema
 
 Um app open source para capturar ideias, organizar anotações de estudo e, no futuro, desenhar diagramas como os de system design. A experiência é personalizada e usa a metáfora de um aquário: ideias entram pela superfície e ganham profundidade conforme amadurecem.
@@ -102,6 +113,8 @@ Sem terminais embutidos, o app fica mais leve, e o Tauri passa a ser uma opção
 A primeira versão do Aquarium era uma IDE de orquestração de agentes inspirada no [Orca](https://github.com/stablyai/orca) e no [Alethe](https://github.com/Kc1t/alethe-agents). Foi descartada por ser complexa demais para começar, difícil de visualizar e, no fim, uma cópia mais simples do que já existe. A metáfora do aquário foi mantida.
 
 ## Próximos passos: design e fluxos
+
+> Lista original, anterior à mudança de direção. Novo foco: criação e edição de notas.
 
 - [ ] Fluxo de captura rápida
 - [ ] Layout da tela do aquário e das camadas de profundidade
