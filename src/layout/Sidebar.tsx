@@ -330,7 +330,7 @@ export function Sidebar({
         onClick={() => onOpenFolder("")}
         className="flex cursor-pointer items-center gap-2.5 px-4 pt-1.5 pb-[18px] focus-visible:outline-2 focus-visible:outline-brand-light"
       >
-        <img src={logoSymbol} alt="" width={20} height={30} />
+        <img src={logoSymbol} alt="" width={21} height={30} />
         <span className="font-display text-[19px] font-light tracking-tight text-ink">
           notesea
         </span>
