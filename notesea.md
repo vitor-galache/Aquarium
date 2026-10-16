@@ -4,7 +4,7 @@ Oct 15, 2026 · @Vitor
 
 ## Novo nome: Notesea (16 out 2026)
 
-O projeto se chamava **Aquarium** e passou a se chamar **Notesea**, para refletir o foco em anotações. Só o nome mudou; o visual com a temática de aquário continua. O identificador do app virou `com.vitorgalache.notesea` e a pasta de metadados virou `.notesea/`; o app migra sozinho a pasta `.aquarium/` e a última pasta aberta da versão anterior.
+O projeto se chamava **Aquarium** e passou a se chamar **Notesea**, para refletir o foco em anotações. Junto veio uma logo nova: uma folha de nota com o canto dobrado e o mar subindo em camadas (direção "Página-mar"), com a mesma paleta e a tipografia Sora Light. O restante da temática de mar continua. O identificador do app virou `com.vitorgalache.notesea` e a pasta de metadados virou `.notesea/`; o app migra sozinho a pasta `.aquarium/` e a última pasta aberta da versão anterior.
 
 ## Mudança de direção (16 out 2026)
 
@@ -24,7 +24,7 @@ Fora do escopo da primeira versão; registradas para não se perderem.
 - **Exportar para PDF:** uma nota ou uma pasta inteira, mantendo a formatação do Markdown.
 - **Dashboards:** visões geradas a partir das notas (ex.: progresso de estudo, contagens por pasta/tag, atividade ao longo do tempo).
 - **Mapas mentais:** gerar um mapa a partir de uma nota (títulos e listas) ou das ligações `[[nota]]` entre notas.
-- **Gota flutuante:** atalho visual na tela para a captura rápida, além da gota no menu do sistema (#57).
+- **Ícone flutuante:** atalho visual na tela para a captura rápida, além do ícone no menu do sistema (#57).
 
 Primeiro caso de uso real: o próprio autor usando o app nos estudos de inglês.
 

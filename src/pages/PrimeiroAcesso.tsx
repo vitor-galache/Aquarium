@@ -75,7 +75,7 @@ export function PrimeiroAcesso({ initialPath, initialError, onOpen }: Props) {
       <TitleBar />
       <aside className="flex w-[480px] shrink-0 flex-col gap-6 bg-highlight px-[52px] pt-12 pb-10">
         <div className="flex items-center gap-[7px]">
-          <img src={logoSymbol} alt="" width={27} height={40.5} />
+          <img src={logoSymbol} alt="" width={28} height={40} />
           <span className="font-display text-logo text-ink">notesea</span>
         </div>
         <p className="text-xs font-semibold text-brand">
