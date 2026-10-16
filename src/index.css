@@ -109,4 +109,9 @@
   body {
     @apply bg-canvas font-sans text-ink antialiased;
   }
+
+  /* Imagens da interface não são arrastáveis (as das notas ficam no editor). */
+  img {
+    -webkit-user-drag: none;
+  }
 }

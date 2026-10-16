@@ -1,7 +1,6 @@
 import { useState } from "react";
-import logoSymbol from "../assets/logo-symbol.svg";
 import { Button } from "../components/Button";
-import { FileIcon, FolderIcon } from "../components/Icons";
+import { FileIcon, FolderIcon, NewFileIcon } from "../components/Icons";
 import { captureIdea } from "../lib/aquarium";
 import {
   countNotes,
@@ -89,7 +88,7 @@ export function MeuAquario({
           </p>
         </div>
         <label className="flex h-[46px] items-center gap-3 rounded-card border border-line bg-canvas pr-2 pl-3.5 transition-colors focus-within:border-brand-light">
-          <img src={logoSymbol} alt="" width={14} height={21} />
+          <NewFileIcon className="shrink-0 text-muted" />
           <input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -99,15 +98,15 @@ export function MeuAquario({
                 void capture();
               }
             }}
-            placeholder={`Jogue uma ideia na água${folder?.path ? ` de ${name}` : ""}…`}
-            aria-label="Capturar ideia"
+            placeholder={`Nova nota em ${name}`}
+            aria-label="Nova nota"
             className="min-w-0 flex-1 bg-transparent text-md text-ink outline-none placeholder:text-muted"
           />
           <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
             <kbd className="rounded-[4px] border border-line px-1.5 font-mono text-2xs">
               ↵
             </kbd>
-            soltar na superfície
+            criar
           </span>
         </label>
         {captureError && (
@@ -136,7 +135,7 @@ export function MeuAquario({
       ) : folders + notes === 0 ? (
         <div className="flex flex-col items-center gap-2 py-14 text-base text-muted">
           <p className="text-md text-ink">Pasta vazia</p>
-          <p>Escreva no campo acima para soltar a primeira ideia aqui.</p>
+          <p>Digite no campo acima para criar a primeira nota.</p>
         </div>
       ) : (
         <>

@@ -5,7 +5,7 @@
 
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::aquarium::INTERNAL_DIR;
 use crate::index::IndexState;
@@ -14,7 +14,7 @@ const ORDER_FILE: &str = "order.json";
 
 pub type Order = BTreeMap<String, Vec<String>>;
 
-fn root(state: &IndexState) -> Result<std::path::PathBuf, String> {
+fn root(state: &IndexState) -> Result<PathBuf, String> {
     state
         .root()
         .ok_or_else(|| "Nenhum aquário aberto.".to_string())
@@ -54,6 +54,41 @@ pub fn folders(root: &Path) -> Vec<String> {
     out
 }
 
+/// Caminho no disco de uma pasta relativa, sem sair do aquário.
+fn resolve(root: &Path, folder: &str) -> Result<PathBuf, String> {
+    folder
+        .split('/')
+        .filter(|p| !p.is_empty())
+        .try_fold(root.to_path_buf(), |dir, part| {
+            if part == ".." || part.starts_with('.') {
+                Err(format!("Pasta inválida: {folder}"))
+            } else {
+                Ok(dir.join(part))
+            }
+        })
+}
+
+/// Move a nota para outra pasta do aquário; se o nome existir, ganha sufixo.
+pub fn move_into(root: &Path, note: &Path, folder: &str) -> Result<PathBuf, String> {
+    let dir = resolve(root, folder)?;
+    if !dir.is_dir() {
+        return Err(format!("A pasta {folder} não existe."));
+    }
+    if !note.starts_with(root) || !note.is_file() {
+        return Err("Nota inválida.".into());
+    }
+    if note.parent() == Some(dir.as_path()) {
+        return Ok(note.to_path_buf());
+    }
+    let stem = note
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or("Nota inválida.")?;
+    let target = crate::note::free_path(&dir, stem)?;
+    fs::rename(note, &target).map_err(|e| format!("Não foi possível mover a nota: {e}"))?;
+    Ok(target)
+}
+
 /// Cria `name` dentro de `parent` (relativo ao aquário) e devolve o caminho relativo.
 pub fn create(root: &Path, parent: &str, name: &str) -> Result<String, String> {
     let name = name.trim();
@@ -84,7 +119,7 @@ pub fn create(root: &Path, parent: &str, name: &str) -> Result<String, String> {
     })
 }
 
-fn order_path(root: &Path) -> std::path::PathBuf {
+fn order_path(root: &Path) -> PathBuf {
     root.join(INTERNAL_DIR).join(ORDER_FILE)
 }
 
@@ -112,6 +147,31 @@ pub fn create_folder(
     name: String,
 ) -> Result<String, String> {
     create(&root(&state)?, &parent, &name)
+}
+
+/// Move a nota para `folder` e devolve o novo caminho.
+#[tauri::command]
+pub fn move_note(
+    state: tauri::State<IndexState>,
+    path: String,
+    folder: String,
+) -> Result<String, String> {
+    let target = move_into(&root(&state)?, Path::new(&path), &folder)?;
+    state.resync();
+    Ok(target.display().to_string())
+}
+
+/// Manda a pasta inteira (com as notas) para a lixeira do sistema.
+#[tauri::command]
+pub fn trash_folder(state: tauri::State<IndexState>, folder: String) -> Result<(), String> {
+    let root = root(&state)?;
+    let dir = resolve(&root, &folder)?;
+    if dir == root || !dir.is_dir() {
+        return Err(format!("Pasta inválida: {folder}"));
+    }
+    trash::delete(&dir).map_err(|e| format!("Não foi possível mover para a lixeira: {e}"))?;
+    state.resync();
+    Ok(())
 }
 
 #[tauri::command]
@@ -151,6 +211,14 @@ mod tests {
         assert!(create(&root, "", ".oculta").is_err());
         assert!(create(&root, "..", "x").is_err());
         assert_eq!(folders(&root), vec!["Estudos", "Estudos/Cache"]);
+
+        fs::write(root.join("a.md"), "# A").unwrap();
+        fs::write(root.join("Estudos/a.md"), "# outra").unwrap();
+        let movida = move_into(&root, &root.join("a.md"), "Estudos").unwrap();
+        assert_eq!(movida, root.join("Estudos/a-2.md"));
+        assert!(!root.join("a.md").exists());
+        assert!(move_into(&root, &movida, "Nada").is_err());
+        assert_eq!(move_into(&root, &movida, "").unwrap(), root.join("a-2.md"));
 
         let mut order = Order::new();
         order.insert("".into(), vec!["b.md".into(), "Estudos/".into()]);

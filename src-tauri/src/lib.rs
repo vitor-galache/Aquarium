@@ -22,6 +22,8 @@ pub fn run() {
             folder::create_folder,
             folder::get_order,
             folder::set_order,
+            folder::move_note,
+            folder::trash_folder,
             index::index_status,
             index::list_notes,
             index::search_notes,

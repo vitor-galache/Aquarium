@@ -67,7 +67,7 @@ export function CaptureModal({ dir, onClose }: Props) {
           onChange={(event) => setText(event.target.value)}
           onKeyDown={onKeyDown}
           rows={3}
-          placeholder="Jogue uma ideia na água…"
+          placeholder="Nova nota"
           className="w-full resize-none bg-transparent text-title text-ink outline-none placeholder:text-muted"
         />
         <div className="flex items-center justify-between gap-4 text-sm text-muted">

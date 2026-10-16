@@ -179,3 +179,11 @@ export const getOrder = () => invoke<Order>("get_order");
 
 export const setOrder = (folder: string, items: string[]) =>
   invoke<void>("set_order", { folder, items });
+
+/** Move a nota para `folder` (relativa; `""` é a raiz); devolve o novo caminho. */
+export const moveNote = (path: string, folder: string) =>
+  invoke<string>("move_note", { path, folder });
+
+/** Manda a pasta inteira para a lixeira do sistema operacional. */
+export const trashFolder = (folder: string) =>
+  invoke<void>("trash_folder", { folder });
