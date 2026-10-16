@@ -39,10 +39,13 @@ export const createNote = (dir: string, title: string, body: string) =>
 export const saveNote = (
   path: string,
   body: string,
-  depth: Depth,
   corrente: string | null,
   cardume: string | null,
-) => invoke<Note>("save_note", { path, body, depth, corrente, cardume });
+) => invoke<Note>("save_note", { path, body, corrente, cardume });
+
+/** Tira a nota do lodo; a profundidade nunca é escolhida pelo usuário. */
+export const bringToSurface = (path: string) =>
+  invoke<Note>("bring_to_surface", { path });
 
 export type IndexStatus = {
   indexing: boolean;

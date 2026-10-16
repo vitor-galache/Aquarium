@@ -1,4 +1,5 @@
 mod aquarium;
+mod depth;
 mod index;
 mod note;
 
@@ -13,7 +14,8 @@ pub fn run() {
             index::index_status,
             note::read_note,
             note::create_note,
-            note::save_note
+            note::save_note,
+            note::bring_to_surface
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

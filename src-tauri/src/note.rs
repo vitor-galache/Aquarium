@@ -4,6 +4,9 @@
 //! alteradas; qualquer outra linha (de outros apps ou do usuário) é preservada
 //! byte a byte. Veja `docs/formato-da-nota.md`.
 
+use crate::depth::{self, Signal};
+use crate::index::IndexState;
+use rusqlite::Connection;
 use serde::Serialize;
 use std::collections::hash_map::RandomState;
 use std::fs;
@@ -164,6 +167,27 @@ impl Document {
             })
     }
 
+    fn chars(&self) -> usize {
+        self.body.trim().chars().count()
+    }
+
+    /// Recalcula a camada a partir dos sinais; só reescreve `depth` se mudou.
+    fn apply_depth(&mut self, conn: &Connection) -> Result<(), String> {
+        let id = self.get("id").unwrap_or_default();
+        let created = self.get("created").unwrap_or_default();
+        let current = self.get("depth").unwrap_or_default();
+        let facts = depth::NoteFacts {
+            id: &id,
+            created: &created,
+            depth: &current,
+            chars: self.chars(),
+            has_corrente: self.get("corrente").is_some(),
+        };
+        let depth = depth::depth_of(conn, &facts, today())?;
+        self.set("depth", Some(depth.as_str()));
+        Ok(())
+    }
+
     fn to_note(&self, path: &Path) -> Note {
         Note {
             path: path.display().to_string(),
@@ -235,12 +259,17 @@ fn to_base36(mut n: u128) -> String {
 }
 
 /// Data/hora atual em UTC no formato `AAAA-MM-DDTHH:MM:SSZ`.
-fn now_rfc3339() -> String {
+pub(crate) fn now_rfc3339() -> String {
     let secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0);
     format_rfc3339(secs)
+}
+
+/// Dia atual (UTC) em dias desde 1970-01-01.
+pub(crate) fn today() -> i64 {
+    depth::day_number(&now_rfc3339()).unwrap_or(0)
 }
 
 fn format_rfc3339(secs: u64) -> String {
@@ -335,23 +364,80 @@ pub fn write_atomic(path: &Path, content: &str) -> Result<(), String> {
 }
 
 /// Metadados da nota para o índice, sem alterar o arquivo.
-pub fn summarize(path: &Path, content: &str) -> Note {
-    Document::parse(content).to_note(path)
+pub fn summarize(path: &Path, content: &str) -> (Note, usize) {
+    let doc = Document::parse(content);
+    (doc.to_note(path), doc.chars())
 }
 
-/// Lê a nota; se faltar frontmatter (nota criada fora do app), completa e salva.
-#[tauri::command]
-pub fn read_note(path: String) -> Result<Note, String> {
-    let path = PathBuf::from(path);
-    let content = fs::read_to_string(&path)
+fn load(path: &Path) -> Result<(String, Document), String> {
+    let content = fs::read_to_string(path)
         .map_err(|e| format!("Não foi possível ler {}: {e}", path.display()))?;
-    let mut doc = Document::parse(&content);
-    doc.complete();
-    let completed = doc.serialize();
-    if completed != content {
-        write_atomic(&path, &completed)?;
+    let doc = Document::parse(&content);
+    Ok((content, doc))
+}
+
+fn store(path: &Path, original: &str, doc: &Document) -> Result<(), String> {
+    let updated = doc.serialize();
+    if updated != original {
+        write_atomic(path, &updated)?;
     }
-    Ok(doc.to_note(&path))
+    Ok(())
+}
+
+/// Abre a nota: completa o frontmatter que faltar, registra a abertura e
+/// recalcula a profundidade. Abrir uma nota do lodo a traz de volta à superfície.
+fn open_note(path: &Path, db: Option<&Connection>) -> Result<Note, String> {
+    let (content, mut doc) = load(path)?;
+    doc.complete();
+    if let Some(conn) = db {
+        let id = doc.get("id").unwrap_or_default();
+        let now = now_rfc3339();
+        if doc.get("depth").as_deref() == Some("lodo") {
+            depth::record(conn, &id, Signal::Resurface, &now)?;
+        }
+        depth::record(conn, &id, Signal::Open, &now)?;
+        doc.apply_depth(conn)?;
+    }
+    store(path, &content, &doc)?;
+    Ok(doc.to_note(path))
+}
+
+/// Salva corpo e metadados; a profundidade é sempre calculada, nunca escolhida.
+fn save(
+    path: &Path,
+    body: String,
+    corrente: Option<String>,
+    cardume: Option<String>,
+    db: Option<&Connection>,
+) -> Result<Note, String> {
+    let (content, mut doc) = load(path)?;
+    let edited = doc.body != body;
+    doc.body = body;
+    doc.complete();
+    let clean = |v: Option<String>| v.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+    doc.set("corrente", clean(corrente).as_deref());
+    doc.set("cardume", clean(cardume).as_deref());
+    if let Some(conn) = db {
+        if edited {
+            let id = doc.get("id").unwrap_or_default();
+            depth::record(conn, &id, Signal::Edit, &now_rfc3339())?;
+        }
+        doc.apply_depth(conn)?;
+    }
+    store(path, &content, &doc)?;
+    Ok(doc.to_note(path))
+}
+
+/// Grava a camada calculada pelo índice (ex.: a nota afundou no lodo).
+pub fn write_depth(path: &Path, depth: &str) -> Result<(), String> {
+    let (content, mut doc) = load(path)?;
+    doc.set("depth", Some(depth));
+    store(path, &content, &doc)
+}
+
+#[tauri::command]
+pub fn read_note(state: tauri::State<IndexState>, path: String) -> Result<Note, String> {
+    open_note(Path::new(&path), state.db().as_ref())
 }
 
 /// Cria uma nota nova na pasta do aquário, com nome derivado do título.
@@ -370,33 +456,38 @@ pub fn create_note(dir: String, title: String, body: String) -> Result<Note, Str
     Ok(doc.to_note(&path))
 }
 
-/// Salva corpo e metadados, preservando chaves desconhecidas do frontmatter.
 #[tauri::command]
 pub fn save_note(
+    state: tauri::State<IndexState>,
     path: String,
     body: String,
-    depth: String,
     corrente: Option<String>,
     cardume: Option<String>,
 ) -> Result<Note, String> {
-    if !DEPTHS.contains(&depth.as_str()) {
-        return Err(format!("Profundidade inválida: {depth}"));
-    }
-    let path = PathBuf::from(path);
-    let content = fs::read_to_string(&path)
-        .map_err(|e| format!("Não foi possível ler {}: {e}", path.display()))?;
-    let mut doc = Document::parse(&content);
-    doc.body = body;
+    save(
+        Path::new(&path),
+        body,
+        corrente,
+        cardume,
+        state.db().as_ref(),
+    )
+}
+
+/// "Trazer à superfície": tira a nota do lodo sem precisar abri-la.
+#[tauri::command]
+pub fn bring_to_surface(state: tauri::State<IndexState>, path: String) -> Result<Note, String> {
+    let path = Path::new(&path);
+    let (content, mut doc) = load(path)?;
     doc.complete();
-    doc.set("depth", Some(&depth));
-    let clean = |v: Option<String>| v.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
-    doc.set("corrente", clean(corrente).as_deref());
-    doc.set("cardume", clean(cardume).as_deref());
-    let updated = doc.serialize();
-    if updated != content {
-        write_atomic(&path, &updated)?;
+    if let Some(conn) = state.db().as_ref() {
+        if doc.get("depth").as_deref() == Some("lodo") {
+            let id = doc.get("id").unwrap_or_default();
+            depth::record(conn, &id, Signal::Resurface, &now_rfc3339())?;
+        }
+        doc.apply_depth(conn)?;
     }
-    Ok(doc.to_note(&path))
+    store(path, &content, &doc)?;
+    Ok(doc.to_note(path))
 }
 
 #[cfg(test)]
@@ -486,16 +577,17 @@ mod tests {
         assert!(b.path.ends_with("cache-2.md"));
         assert_ne!(a.id, b.id);
 
-        let saved = save_note(
-            b.path.clone(),
+        let saved = save(
+            Path::new(&b.path),
             "novo\n".into(),
-            "fundo".into(),
             Some("Infra".into()),
+            None,
             None,
         )
         .unwrap();
-        assert_eq!(saved.depth, "fundo");
-        assert_eq!(read_note(b.path).unwrap(), saved);
+        assert_eq!(saved.depth, "superficie");
+        assert_eq!(saved.corrente.as_deref(), Some("Infra"));
+        assert_eq!(open_note(Path::new(&b.path), None).unwrap(), saved);
         assert!(
             fs::read_dir(&dir).unwrap().all(|e| !e
                 .unwrap()
