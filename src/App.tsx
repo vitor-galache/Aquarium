@@ -3,6 +3,7 @@ import { Sidebar } from "./layout/Sidebar";
 import { MeuAquario } from "./pages/MeuAquario";
 import { PrimeiroAcesso } from "./pages/PrimeiroAcesso";
 import { NotaAberta } from "./pages/NotaAberta";
+import { DesenvolverIdeias } from "./pages/DesenvolverIdeias";
 import { Button } from "./components/Button";
 import { CaptureModal } from "./components/CaptureModal";
 import {
@@ -15,6 +16,7 @@ import {
 type View =
   | { kind: "aquario" }
   | { kind: "nota"; path: string }
+  | { kind: "desenvolver" }
   | { kind: "em-breve"; title: string };
 
 function App() {
@@ -66,6 +68,11 @@ function App() {
             path={view.path}
             onBack={() => setView({ kind: "aquario" })}
           />
+        ) : view.kind === "desenvolver" ? (
+          <DesenvolverIdeias
+            onBack={() => setView({ kind: "aquario" })}
+            onOpenNote={(path) => setView({ kind: "nota", path })}
+          />
         ) : view.kind === "em-breve" ? (
           <div className="flex flex-col items-start gap-4">
             <Button
@@ -84,7 +91,7 @@ function App() {
             aquarium={aquarium}
             onCapture={() => setCapturing(true)}
             onOpenNote={(path) => setView({ kind: "nota", path })}
-            onTriage={() => setView({ kind: "em-breve", title: "Triagem" })}
+            onDevelop={() => setView({ kind: "desenvolver" })}
             onRefind={() => setView({ kind: "em-breve", title: "Reencontrar" })}
           />
         )}
