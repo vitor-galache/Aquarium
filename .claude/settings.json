@@ -19,7 +19,9 @@
       "Bash(git push -f:*)",
       "Bash(git push origin main:*)",
       "Bash(gh api -X PUT repos/vitor-galache/Aquarium/branches/main/protection:*)",
-      "Bash(gh api -X DELETE repos/vitor-galache/Aquarium/branches/main/protection:*)"
+      "Bash(gh api -X DELETE repos/vitor-galache/Aquarium/branches/main/protection:*)",
+      "Bash(gh api -X PUT repos/vitor-galache/notesea/branches/main/protection:*)",
+      "Bash(gh api -X DELETE repos/vitor-galache/notesea/branches/main/protection:*)"
     ]
   }
 }
