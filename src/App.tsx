@@ -31,9 +31,6 @@ type View =
   | { kind: "nota"; path: string }
   | { kind: "em-breve"; title: string };
 
-const rootName = (path: string) =>
-  path.split(/[\\/]/).filter(Boolean).pop() ?? path;
-
 function App() {
   const [initial, setInitial] = useState<Startup | null>(null);
   const [vault, setVault] = useState<Vault | null>(null);
@@ -137,7 +134,7 @@ function App() {
     setView({ kind: "inicio" });
   };
   const crumbs = [
-    { label: rootName(vault.path), onClick: () => goTo("") },
+    { label: "Minhas notas", onClick: () => goTo("") },
     ...ancestors(crumbFolder).map((path) => ({
       label: path.split("/").pop() ?? path,
       onClick: () => goTo(path),

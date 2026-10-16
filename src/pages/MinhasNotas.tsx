@@ -40,7 +40,7 @@ export function MinhasNotas({
   const [draft, setDraft] = useState("");
   const [captureError, setCaptureError] = useState<string | null>(null);
 
-  const name = folder?.name || root.split(/[\\/]/).filter(Boolean).pop();
+  const name = folder?.name || "Minhas notas";
   const fsPath = folder?.path ? `${root}/${folder.path}` : root;
 
   const capture = async () => {
