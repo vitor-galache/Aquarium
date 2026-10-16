@@ -1,262 +1,208 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import logoSymbol from "../assets/logo-symbol.svg";
 import { Button } from "../components/Button";
+import { FileIcon, FolderIcon } from "../components/Icons";
+import { captureIdea } from "../lib/aquarium";
 import {
-  indexStatus,
-  listNotes,
-  onIndexStatus,
-  type Aquarium,
-  type IndexStatus,
-  type NoteSummary,
-} from "../lib/aquarium";
+  countNotes,
+  DEPTHS,
+  folderDir,
+  notesLabel,
+  type Folder,
+} from "../lib/tree";
 
 type Props = {
-  aquarium: Aquarium;
-  onCapture: () => void;
+  root: string;
+  /** Pasta mostrada; `null` enquanto o índice carrega. */
+  folder: Folder | null;
+  indexing: boolean;
+  error: string | null;
+  onRetry: () => void;
+  onOpenFolder: (folder: string) => void;
   onOpenNote: (path: string) => void;
-  onSearch: () => void;
+  onCaptured: () => void;
 };
 
 const dateFormat = new Intl.DateTimeFormat("pt-BR", {
   day: "numeric",
   month: "short",
-  year: "numeric",
 });
 
 const formatDate = (modified: number) =>
   modified > 0 ? dateFormat.format(new Date(modified)) : "";
 
-const countLabel = (n: number) => (n === 1 ? "1 nota" : `${n} notas`);
+const grid = "grid grid-cols-[minmax(0,1fr)_140px_120px] gap-4";
 
-/** Lista de notas, da última editada para a mais antiga. */
+/** Conteúdo da pasta atual, como num explorador de arquivos. */
 export function MeuAquario({
-  aquarium,
-  onCapture,
+  root,
+  folder,
+  indexing,
+  error,
+  onRetry,
+  onOpenFolder,
   onOpenNote,
-  onSearch,
+  onCaptured,
 }: Props) {
-  const { path } = aquarium;
-  const [status, setStatus] = useState<IndexStatus>({
-    indexing: true,
-    noteCount: aquarium.noteCount,
-  });
-  const [notes, setNotes] = useState<NoteSummary[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  // Filtros opcionais; `null` mostra tudo.
-  const [folder, setFolder] = useState<string | null>(null);
-  const [tag, setTag] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [captureError, setCaptureError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const unlisten = onIndexStatus(setStatus);
-    indexStatus().then(setStatus);
-    return () => {
-      unlisten.then((fn) => fn());
-    };
-  }, [path]);
+  const name = folder?.name || root.split(/[\\/]/).filter(Boolean).pop();
+  const fsPath = folder?.path ? `${root}/${folder.path}` : root;
 
-  // Recarrega a lista sempre que o índice termina uma sincronização.
-  const { noteCount, indexing } = status;
-  useEffect(() => {
-    if (indexing) return;
-    let current = true;
-    listNotes()
-      .then((list) => {
-        if (!current) return;
-        setNotes(list);
-        setError(null);
-      })
-      .catch((e: unknown) => {
-        if (current) setError(String(e));
-      });
-    return () => {
-      current = false;
-    };
-  }, [path, indexing, noteCount]);
+  const capture = async () => {
+    const text = draft.trim();
+    if (!text || !folder) return;
+    try {
+      await captureIdea(folderDir(root, folder.path), text);
+      setDraft("");
+      setCaptureError(null);
+      onCaptured();
+    } catch (e) {
+      setCaptureError(String(e));
+    }
+  };
 
-  const folders = sorted(notes?.map((n) => n.folder).filter(Boolean));
-  const tags = sorted(notes?.flatMap((n) => n.tags));
-  const filtered = notes?.filter(
-    (n) =>
-      (folder === null ||
-        n.folder === folder ||
-        n.folder.startsWith(`${folder}/`)) &&
-      (tag === null || n.tags.includes(tag)),
-  );
+  const folders = folder?.folders.length ?? 0;
+  const notes = folder?.notes.length ?? 0;
+  const summary = [
+    folders > 0 && (folders === 1 ? "1 pasta" : `${folders} pastas`),
+    notesLabel(notes),
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-start justify-between gap-6">
-        <div className="flex flex-col gap-[5px]">
-          <h1 className="font-display text-heading font-semibold">Notas</h1>
-          <p className="text-md text-muted">
-            {countLabel(noteCount)} em {path}
-            {indexing && " · indexando…"}
+    <div className="flex min-h-full flex-col">
+      <div className="flex flex-col gap-[18px] px-8 pt-7 pb-[18px]">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <h1 className="truncate font-display text-[26px] font-medium tracking-tight">
+            {name}
+          </h1>
+          <p className="flex min-w-0 items-center gap-2.5 text-sm text-muted">
+            <span className="shrink-0">
+              {summary}
+              {indexing && " · indexando…"}
+            </span>
+            <span className="text-line">·</span>
+            <span className="truncate font-mono text-xs">{fsPath}</span>
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="secondary" onClick={onSearch}>
-            Buscar
-          </Button>
-          <Button onClick={onCapture} title="Ctrl+Shift+Espaço">
-            Nova nota
-          </Button>
-        </div>
+        <label className="flex h-[46px] items-center gap-3 rounded-card border border-line bg-canvas pr-2 pl-3.5 transition-colors focus-within:border-brand-light">
+          <img src={logoSymbol} alt="" width={14} height={21} />
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                void capture();
+              }
+            }}
+            placeholder={`Jogue uma ideia na água${folder?.path ? ` de ${name}` : ""}…`}
+            aria-label="Capturar ideia"
+            className="min-w-0 flex-1 bg-transparent text-md text-ink outline-none placeholder:text-muted"
+          />
+          <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
+            <kbd className="rounded-[4px] border border-line px-1.5 font-mono text-2xs">
+              ↵
+            </kbd>
+            soltar na superfície
+          </span>
+        </label>
+        {captureError && (
+          <p role="alert" className="text-base text-red-700">
+            {captureError}
+          </p>
+        )}
       </div>
 
       {error ? (
         <div
           role="alert"
-          className="flex items-center justify-between gap-4 rounded-card border border-line bg-surface p-6"
+          className="mx-8 flex items-center justify-between gap-4 rounded-card border border-line bg-surface p-6"
         >
           <p className="text-md text-ink">
             Não foi possível carregar as notas: {error}
           </p>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setError(null);
-              listNotes().then(setNotes, (e: unknown) => setError(String(e)));
-            }}
-          >
+          <Button variant="secondary" onClick={onRetry}>
             Tentar de novo
           </Button>
         </div>
-      ) : notes === null ? (
-        <p className="text-md text-muted" aria-busy="true">
+      ) : !folder ? (
+        <p className="px-8 text-md text-muted" aria-busy="true">
           Carregando notas…
         </p>
-      ) : notes.length === 0 ? (
-        <div className="flex flex-col items-start gap-3 rounded-panel border border-line bg-layer-surface p-8">
-          <h2 className="font-display text-title font-semibold text-ink">
-            Nenhuma nota ainda
-          </h2>
-          <p className="max-w-prose text-md text-muted">
-            Crie a primeira nota. Ela fica salva como arquivo Markdown nesta
-            pasta.
-          </p>
-          <Button onClick={onCapture}>Nova nota</Button>
+      ) : folders + notes === 0 ? (
+        <div className="flex flex-col items-center gap-2 py-14 text-base text-muted">
+          <p className="text-md text-ink">Pasta vazia</p>
+          <p>Escreva no campo acima para soltar a primeira ideia aqui.</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
-          {(folders.length > 0 || tags.length > 0) && (
-            <div className="flex flex-wrap items-center gap-3">
-              {folders.length > 0 && (
-                <Filter
-                  label="Pasta"
-                  all="Todas as pastas"
-                  value={folder}
-                  options={folders}
-                  onChange={setFolder}
-                />
-              )}
-              {tags.length > 0 && (
-                <Filter
-                  label="Tag"
-                  all="Todas as tags"
-                  value={tag}
-                  options={tags}
-                  onChange={setTag}
-                />
-              )}
-              {(folder !== null || tag !== null) && (
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setFolder(null);
-                    setTag(null);
-                  }}
+        <>
+          <div
+            className={`${grid} pr-8 pb-2 pl-[46px] text-2xs font-semibold tracking-widest text-muted uppercase`}
+          >
+            <span>Nome</span>
+            <span>Profundidade</span>
+            <span className="text-right">Modificado</span>
+          </div>
+          <ul className="flex flex-col gap-0.5 px-5 pb-6">
+            {folder.folders.map((child) => (
+              <li key={child.path}>
+                <button
+                  type="button"
+                  onClick={() => onOpenFolder(child.path)}
+                  className={`${grid} w-full cursor-pointer items-center rounded-control px-3 py-[11px] text-left transition-colors hover:bg-highlight/60 focus-visible:outline-2 focus-visible:outline-brand-light`}
                 >
-                  Limpar filtros
-                </Button>
-              )}
-            </div>
-          )}
-          {filtered?.length === 0 ? (
-            <p className="text-md text-muted">
-              Nenhuma nota com esses filtros.
-            </p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {filtered?.map((note) => (
-                <li key={note.path}>
-                  <NoteRow note={note} onOpen={onOpenNote} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+                  <span className="flex min-w-0 items-center gap-3">
+                    <FolderIcon open className="shrink-0 text-brand-light" />
+                    <span className="truncate text-md font-medium text-ink">
+                      {child.name}
+                    </span>
+                  </span>
+                  <span className="text-sm text-muted">
+                    {notesLabel(countNotes(child))}
+                  </span>
+                  <span />
+                </button>
+              </li>
+            ))}
+            {folder.notes.map((note) => (
+              <li key={note.path}>
+                <button
+                  type="button"
+                  onClick={() => onOpenNote(note.path)}
+                  className={`${grid} w-full cursor-pointer items-center rounded-control px-3 py-[11px] text-left transition-colors hover:bg-highlight/60 focus-visible:outline-2 focus-visible:outline-brand-light`}
+                >
+                  <span className="flex min-w-0 items-center gap-3">
+                    <FileIcon className="shrink-0 text-muted" />
+                    <span className="flex min-w-0 flex-col gap-[3px]">
+                      <span className="truncate text-md font-medium text-ink">
+                        {note.title || "Sem título"}
+                      </span>
+                      {note.excerpt && (
+                        <span className="truncate text-sm text-muted">
+                          {note.excerpt}
+                        </span>
+                      )}
+                    </span>
+                  </span>
+                  <span className="flex items-center gap-2 text-sm text-ink/80">
+                    <span
+                      className={`size-[7px] rounded-full ${DEPTHS[note.depth].dot}`}
+                    />
+                    {DEPTHS[note.depth].label}
+                  </span>
+                  <span className="text-right font-mono text-xs text-muted">
+                    {formatDate(note.modified)}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </div>
-  );
-}
-
-/** Valores únicos em ordem alfabética (pt-BR). */
-const sorted = (values: string[] = []) =>
-  [...new Set(values)].sort((a, b) => a.localeCompare(b, "pt-BR"));
-
-function Filter({
-  label,
-  all,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  all: string;
-  value: string | null;
-  options: string[];
-  onChange: (value: string | null) => void;
-}) {
-  // Uma pasta/tag escolhida pode sumir da lista; continua visível no seletor.
-  const values =
-    value !== null && !options.includes(value) ? [value, ...options] : options;
-  return (
-    <select
-      aria-label={label}
-      value={value ?? ""}
-      onChange={(e) => onChange(e.target.value || null)}
-      className="rounded-control border border-line bg-surface px-3 py-2 text-md text-ink outline-none focus:border-brand-light"
-    >
-      <option value="">{all}</option>
-      {values.map((v) => (
-        <option key={v} value={v}>
-          {label === "Tag" ? `#${v}` : v}
-        </option>
-      ))}
-    </select>
-  );
-}
-
-function NoteRow({
-  note,
-  onOpen,
-}: {
-  note: NoteSummary;
-  onOpen: (path: string) => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onOpen(note.path)}
-      className="flex w-full cursor-pointer items-baseline gap-4 rounded-card border border-line bg-surface px-4 py-3 text-left transition-colors hover:border-brand-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light"
-    >
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <h3 className="truncate text-md font-semibold text-ink">
-          {note.title}
-        </h3>
-        {note.excerpt && (
-          <p className="truncate text-base text-muted">{note.excerpt}</p>
-        )}
-        {(note.folder || note.tags.length > 0) && (
-          <p className="truncate text-xs text-muted">
-            {[note.folder, ...note.tags.map((t) => `#${t}`)]
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
-        )}
-      </div>
-      <span className="shrink-0 text-xs text-muted">
-        {formatDate(note.modified)}
-      </span>
-    </button>
   );
 }

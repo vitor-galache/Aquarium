@@ -1,92 +1,56 @@
 import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
 import logoSymbol from "../assets/logo-symbol.svg";
-import { Button } from "../components/Button";
 import {
-  indexStatus,
-  listNotes,
-  onIndexStatus,
-  type IndexStatus,
-  type NoteSummary,
-} from "../lib/aquarium";
+  ChevronIcon,
+  CollapseIcon,
+  FileIcon,
+  FolderIcon,
+  GearIcon,
+  NewFileIcon,
+  UpDownIcon,
+} from "../components/Icons";
+import type { NoteSummary } from "../lib/aquarium";
+import { ancestors, countNotes, DEPTHS, type Folder } from "../lib/tree";
 
 type Props = {
-  /** Muda quando uma nota é criada pelo app, para recarregar a lista. */
-  refreshKey: number;
+  root: string;
+  tree: Folder;
+  /** Pasta mostrada na área principal (`""` na raiz). */
+  currentFolder: string;
   activePath: string | null;
   onNewNote: () => void;
+  onOpenFolder: (folder: string) => void;
   onOpenNote: (path: string) => void;
-  onHome: () => void;
   onSettings: () => void;
   onRename: (path: string, title: string) => void;
   onDuplicate: (path: string) => void;
   onTrash: (path: string) => void;
 };
 
-/** Pasta do explorador, montada a partir do campo `folder` do índice. */
-type Folder = {
-  path: string;
-  name: string;
-  folders: Folder[];
-  notes: NoteSummary[];
-};
-
-const byName = (a: string, b: string) =>
-  a.localeCompare(b, "pt-BR", { sensitivity: "base", numeric: true });
-
-function buildTree(notes: NoteSummary[]): Folder {
-  const root: Folder = { path: "", name: "", folders: [], notes: [] };
-  for (const note of notes) {
-    let folder = root;
-    for (const part of note.folder.split("/").filter(Boolean)) {
-      const path = folder.path ? `${folder.path}/${part}` : part;
-      let child = folder.folders.find((f) => f.path === path);
-      if (!child) {
-        child = { path, name: part, folders: [], notes: [] };
-        folder.folders.push(child);
-      }
-      folder = child;
-    }
-    folder.notes.push(note);
-  }
-  const sort = (folder: Folder) => {
-    folder.folders.sort((a, b) => byName(a.name, b.name));
-    folder.notes.sort((a, b) => byName(a.title, b.title));
-    folder.folders.forEach(sort);
-  };
-  sort(root);
-  return root;
-}
-
-const ancestors = (folder: string) =>
-  folder
-    .split("/")
-    .filter(Boolean)
-    .map((_, i, parts) => parts.slice(0, i + 1).join("/"));
+const folderName = (path: string) =>
+  path.split(/[\\/]/).filter(Boolean).pop() ?? path;
 
 const rowClass =
-  "flex w-full cursor-pointer items-center gap-1.5 truncate rounded-control py-1 pr-2 text-left text-md transition-colors focus-visible:outline-2 focus-visible:outline-brand-light";
+  "flex h-[30px] w-full cursor-pointer items-center gap-1.5 rounded-chip pr-2.5 text-left text-base transition-colors focus-visible:outline-2 focus-visible:outline-brand-light";
 
-const normalize = (text: string) =>
-  text
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase();
+const iconButton =
+  "flex size-[26px] cursor-pointer items-center justify-center rounded-chip text-muted transition-colors hover:bg-highlight hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-light";
 
+/** Explorador de arquivos do aquário: pastas e notas `.md`. */
 export function Sidebar({
-  refreshKey,
+  root,
+  tree,
+  currentFolder,
   activePath,
   onNewNote,
+  onOpenFolder,
   onOpenNote,
-  onHome,
   onSettings,
   onRename,
   onDuplicate,
   onTrash,
 }: Props) {
-  const [status, setStatus] = useState<IndexStatus | null>(null);
-  const [notes, setNotes] = useState<NoteSummary[]>([]);
-  const [query, setQuery] = useState("");
-  // Pastas abertas/fechadas pelo usuário; as demais seguem a nota aberta.
+  // Pastas abertas/fechadas pelo usuário; as demais seguem a pasta atual.
   const [toggled, setToggled] = useState<Map<string, boolean>>(new Map());
   const [menu, setMenu] = useState<{
     note: NoteSummary;
@@ -97,11 +61,6 @@ export function Sidebar({
     path: string;
     title: string;
   } | null>(null);
-
-  const activeFolder = notes.find((n) => n.path === activePath)?.folder;
-  const activeAncestors = new Set(ancestors(activeFolder ?? ""));
-  const isExpanded = (path: string) =>
-    toggled.get(path) ?? activeAncestors.has(path);
 
   useEffect(() => {
     if (!menu) return;
@@ -116,43 +75,13 @@ export function Sidebar({
     };
   }, [menu]);
 
-  useEffect(() => {
-    const unlisten = onIndexStatus(setStatus);
-    indexStatus().then(setStatus);
-    return () => {
-      unlisten.then((fn) => fn());
-    };
-  }, []);
+  const currentAncestors = new Set(ancestors(currentFolder));
+  const isExpanded = (path: string) =>
+    toggled.get(path) ?? currentAncestors.has(path);
 
-  const indexing = status?.indexing ?? true;
-  const noteCount = status?.noteCount ?? 0;
-  useEffect(() => {
-    if (indexing) return;
-    let current = true;
-    listNotes()
-      .then((list) => {
-        if (current) setNotes(list);
-      })
-      .catch(() => {});
-    return () => {
-      current = false;
-    };
-  }, [indexing, noteCount, refreshKey]);
-
-  const terms = normalize(query.trim()).split(/\s+/).filter(Boolean);
-  const visible = terms.length
-    ? notes.filter((n) => {
-        const text = normalize(`${n.title} ${n.excerpt}`);
-        return terms.every((t) => text.includes(t));
-      })
-    : notes;
-  const tree = buildTree(notes);
-
-  const toggle = (path: string) =>
-    setToggled((prev) => new Map(prev).set(path, !isExpanded(path)));
+  const indent = (depth: number) => ({ paddingLeft: 6 + depth * 16 });
 
   const noteRow = (note: NoteSummary, depth: number) => {
-    const indent = { paddingLeft: 8 + depth * 14 };
     if (renaming?.path === note.path) {
       const submit = () => {
         const title = renaming.title.trim();
@@ -160,7 +89,7 @@ export function Sidebar({
         if (title && title !== note.title) onRename(note.path, title);
       };
       return (
-        <li key={note.path} style={indent}>
+        <li key={note.path} style={indent(depth)}>
           <input
             autoFocus
             value={renaming.title}
@@ -173,12 +102,13 @@ export function Sidebar({
               if (e.key === "Escape") setRenaming(null);
             }}
             onBlur={submit}
-            className="w-full rounded-control border border-brand-light bg-canvas px-2 py-1 text-md text-ink outline-none"
+            className="h-[30px] w-full rounded-chip border border-brand-light bg-canvas px-2 text-base text-ink outline-none"
           />
         </li>
       );
     }
     const active = note.path === activePath;
+    const depthInfo = DEPTHS[note.depth];
     return (
       <li key={note.path}>
         <button
@@ -190,14 +120,23 @@ export function Sidebar({
           }}
           aria-current={active ? "page" : undefined}
           title={note.title}
-          style={indent}
+          style={indent(depth)}
           className={`${rowClass} ${
             active
-              ? "bg-highlight font-semibold text-brand"
-              : "text-ink hover:bg-canvas"
+              ? "bg-highlight text-ink"
+              : "text-ink/85 hover:bg-highlight/60"
           }`}
         >
-          <span className="truncate">{note.title || "Sem título"}</span>
+          <span className="w-3 shrink-0" />
+          <FileIcon className="shrink-0 text-muted" />
+          <span className="min-w-0 flex-1 truncate">
+            {note.title || "Sem título"}
+            <span className="text-muted/70">.md</span>
+          </span>
+          <span
+            title={depthInfo.label}
+            className={`size-1.5 shrink-0 rounded-full ${depthInfo.dot}`}
+          />
         </button>
       </li>
     );
@@ -206,25 +145,36 @@ export function Sidebar({
   const folderRows = (folder: Folder, depth: number): ReactNode[] => [
     ...folder.folders.map((child) => {
       const expanded = isExpanded(child.path);
+      const active = child.path === currentFolder && !activePath;
       return (
         <li key={`dir:${child.path}`}>
           <button
             type="button"
-            onClick={() => toggle(child.path)}
+            onClick={() => {
+              setToggled((prev) => new Map(prev).set(child.path, !expanded));
+              onOpenFolder(child.path);
+            }}
             aria-expanded={expanded}
-            style={{ paddingLeft: 8 + depth * 14 }}
-            className={`${rowClass} text-muted hover:bg-canvas hover:text-ink`}
+            style={indent(depth)}
+            className={`${rowClass} ${
+              active
+                ? "bg-highlight text-ink"
+                : "text-ink/85 hover:bg-highlight/60"
+            }`}
           >
-            <span
-              aria-hidden="true"
-              className={`inline-block w-2.5 text-2xs transition-transform ${expanded ? "rotate-90" : ""}`}
-            >
-              ▶
+            <span className="flex w-3 shrink-0 justify-center text-muted">
+              <ChevronIcon
+                className={`transition-transform ${expanded ? "rotate-90" : ""}`}
+              />
             </span>
-            <span className="truncate">{child.name}</span>
+            <FolderIcon open={expanded} className="shrink-0 text-brand-light" />
+            <span className="min-w-0 flex-1 truncate">{child.name}</span>
+            <span className="font-mono text-2xs text-muted/70">
+              {countNotes(child)}
+            </span>
           </button>
           {expanded && (
-            <ul className="flex flex-col gap-0.5">
+            <ul className="flex flex-col gap-px">
               {folderRows(child, depth + 1)}
             </ul>
           )}
@@ -234,59 +184,92 @@ export function Sidebar({
     ...folder.notes.map((note) => noteRow(note, depth)),
   ];
 
+  const empty = tree.folders.length === 0 && tree.notes.length === 0;
+
   return (
-    <nav className="flex h-full w-sidebar shrink-0 flex-col gap-6 overflow-hidden border-r border-line bg-surface px-[18px] pt-10 pb-[18px]">
+    <nav className="flex h-full w-[264px] shrink-0 flex-col border-r border-line bg-surface">
+      {/* Espaço dos botões da janela (barra de título escondida). */}
+      <div data-tauri-drag-region className="h-11 shrink-0" />
+
       <button
         type="button"
-        onClick={onHome}
-        className="flex cursor-pointer items-center gap-[7px] rounded-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-light"
+        onClick={() => onOpenFolder("")}
+        className="flex cursor-pointer items-center gap-2.5 px-4 pt-1.5 pb-[18px] focus-visible:outline-2 focus-visible:outline-brand-light"
       >
-        <img src={logoSymbol} alt="" width={27} height={40.5} />
-        <span className="font-display text-logo text-ink">aquarium</span>
+        <img src={logoSymbol} alt="" width={20} height={30} />
+        <span className="font-display text-[19px] font-light tracking-tight text-ink">
+          aquarium
+        </span>
       </button>
-
-      <div className="flex flex-col gap-3">
-        <Button onClick={onNewNote} className="justify-center">
-          + Nova nota
-        </Button>
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") setQuery("");
-            if (e.key === "Enter" && visible[0]) onOpenNote(visible[0].path);
-          }}
-          placeholder="Filtrar notas…"
-          aria-label="Filtrar notas"
-          className="w-full rounded-control border border-line bg-canvas px-3 py-2 text-md text-ink outline-none placeholder:text-muted focus:border-brand-light"
-        />
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col gap-2">
-        <h2 className="px-2 text-xs font-semibold tracking-wide text-muted uppercase">
-          {terms.length ? "Resultados" : "Notas"}
-        </h2>
-        {visible.length === 0 ? (
-          <p className="px-2 text-base text-muted">
-            {terms.length ? "Nenhuma nota encontrada." : "Nenhuma nota ainda."}
-          </p>
-        ) : (
-          <ul className="flex flex-col gap-0.5 overflow-y-auto">
-            {terms.length
-              ? visible.map((note) => noteRow(note, 0))
-              : folderRows(tree, 0)}
-          </ul>
-        )}
-      </div>
 
       <button
         type="button"
         onClick={onSettings}
-        className="cursor-pointer rounded-control px-2 py-1.5 text-left text-md text-muted transition-colors hover:bg-canvas hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-light"
+        title="Trocar de pasta"
+        className="mx-2.5 mb-2.5 flex cursor-pointer items-center gap-2.5 rounded-control px-2.5 py-2 text-left transition-colors hover:bg-highlight/60 focus-visible:outline-2 focus-visible:outline-brand-light"
       >
-        Configurações
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-[7px] bg-highlight text-brand-light">
+          <FolderIcon />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="text-base font-medium text-ink">
+            {folderName(root)}
+          </span>
+          <span className="truncate font-mono text-2xs text-muted">{root}</span>
+        </span>
+        <UpDownIcon className="shrink-0 text-muted" />
       </button>
+
+      <div className="flex items-center py-1.5 pr-2.5 pl-[18px]">
+        <h2 className="flex-1 text-2xs font-semibold tracking-widest text-muted uppercase">
+          Arquivos
+        </h2>
+        <button
+          type="button"
+          title="Nova nota"
+          aria-label="Nova nota"
+          onClick={onNewNote}
+          className={iconButton}
+        >
+          <NewFileIcon />
+        </button>
+        <button
+          type="button"
+          title="Recolher tudo"
+          aria-label="Recolher tudo"
+          onClick={() => {
+            const closed = new Map<string, boolean>();
+            const walk = (f: Folder) =>
+              f.folders.forEach((c) => (closed.set(c.path, false), walk(c)));
+            walk(tree);
+            setToggled(closed);
+          }}
+          className={iconButton}
+        >
+          <CollapseIcon />
+        </button>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 pt-0.5 pb-3">
+        {empty ? (
+          <p className="px-2.5 py-1 text-base text-muted">
+            Nenhuma nota ainda.
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-px">{folderRows(tree, 0)}</ul>
+        )}
+      </div>
+
+      <div className="border-t border-line px-2 py-2.5">
+        <button
+          type="button"
+          onClick={onSettings}
+          className="flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-chip px-2.5 text-base text-muted transition-colors hover:bg-highlight/60 hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-light"
+        >
+          <GearIcon />
+          Configurações
+        </button>
+      </div>
 
       {menu && (
         <ul
