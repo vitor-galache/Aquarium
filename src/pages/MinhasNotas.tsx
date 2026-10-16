@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
-import { FileIcon, NewFileIcon, SearchIcon } from "../components/Icons";
+import { FilePlusIcon, FileTextIcon, SearchIcon } from "lucide-react";
 import { shortcutKeys, type NoteSummary } from "../lib/vault";
 import { notesLabel, type Folder } from "../lib/tree";
 
@@ -87,7 +87,7 @@ export function MinhasNotas({
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8">
         <Button onClick={onNewNote}>
-          <NewFileIcon />
+          <FilePlusIcon />
           Nova nota
         </Button>
         {capture}
@@ -114,7 +114,7 @@ export function MinhasNotas({
             <Keys keys={["⌘K"]} />
           </Button>
           <Button onClick={onNewNote}>
-            <NewFileIcon />
+            <FilePlusIcon />
             Nova nota
           </Button>
         </div>
@@ -133,7 +133,7 @@ export function MinhasNotas({
                   onClick={() => onOpenNote(note.path)}
                   className="flex w-full cursor-pointer items-center gap-3 rounded-control px-3 py-2.5 text-left transition-colors hover:bg-highlight/60 focus-visible:outline-2 focus-visible:outline-brand-light"
                 >
-                  <FileIcon className="shrink-0 text-muted" />
+                  <FileTextIcon className="size-4 shrink-0 text-muted" />
                   <span className="min-w-0 flex-1 truncate text-md text-ink">
                     {note.title || "Sem título"}
                   </span>

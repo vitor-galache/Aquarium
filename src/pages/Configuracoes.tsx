@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FolderIcon, SearchIcon } from "../components/Icons";
+import { FolderIcon, SearchIcon } from "lucide-react";
 import {
   applyTheme,
   openVault,
@@ -248,7 +248,7 @@ export function Configuracoes({ vault, onChange, onClose }: Props) {
           Voltar ao app
         </button>
         <label className="mx-2.5 mt-3 mb-4 flex h-8 items-center gap-2 rounded-control border border-line bg-canvas px-2.5 text-muted focus-within:border-brand-light">
-          <SearchIcon />
+          <SearchIcon className="size-3.5" />
           <input
             type="search"
             value={query}
