@@ -1,0 +1,41 @@
+@import "../../src/index.css";
+@source "../../src/components";
+
+/* Bolhas que sobem por trás de todo o site. */
+@keyframes subir {
+  from {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  50% {
+    transform: translate(12px, -55vh);
+  }
+  to {
+    transform: translate(-8px, -115vh);
+    opacity: 0;
+  }
+}
+
+.bolha {
+  position: absolute;
+  bottom: -40px;
+  border-radius: 9999px;
+  border: 1px solid
+    color-mix(in srgb, var(--color-brand-light) 60%, transparent);
+  background: radial-gradient(
+    circle at 30% 30%,
+    color-mix(in srgb, white 70%, transparent),
+    color-mix(in srgb, var(--color-brand-light) 15%, transparent)
+  );
+  animation: subir linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bolha {
+    animation: none;
+    display: none;
+  }
+}
