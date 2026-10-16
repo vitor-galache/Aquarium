@@ -14,6 +14,7 @@ pub fn run() {
             aquarium::startup,
             aquarium::open_aquarium,
             index::index_status,
+            index::list_notes,
             note::read_note,
             note::create_note,
             note::save_note,

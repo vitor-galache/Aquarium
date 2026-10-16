@@ -19,6 +19,8 @@ const DELIMITER: &str = "---";
 /// Profundidades válidas; notas novas entram pela superfície.
 pub const DEPTHS: [&str; 4] = ["superficie", "meia-agua", "fundo", "lodo"];
 const DEFAULT_DEPTH: &str = "superficie";
+/// Tamanho máximo do trecho mostrado nos cards.
+const EXCERPT_CHARS: usize = 160;
 
 #[derive(Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -165,6 +167,27 @@ impl Document {
                     .unwrap_or("")
                     .to_string()
             })
+    }
+
+    /// Começo do texto (sem o título e a marcação de cabeçalho) para os cards.
+    fn excerpt(&self) -> String {
+        let mut text = String::new();
+        let lines = self.body.lines().map(str::trim).filter(|l| !l.is_empty());
+        for line in lines.skip_while(|l| l.starts_with("# ")) {
+            if !text.is_empty() {
+                text.push(' ');
+            }
+            text.push_str(line.trim_start_matches('#').trim_start());
+            if text.chars().count() > EXCERPT_CHARS {
+                break;
+            }
+        }
+        if text.chars().count() > EXCERPT_CHARS {
+            let cut: String = text.chars().take(EXCERPT_CHARS).collect();
+            format!("{}…", cut.trim_end())
+        } else {
+            text
+        }
     }
 
     fn chars(&self) -> usize {
@@ -363,10 +386,10 @@ pub fn write_atomic(path: &Path, content: &str) -> Result<(), String> {
     })
 }
 
-/// Metadados da nota para o índice, sem alterar o arquivo.
-pub fn summarize(path: &Path, content: &str) -> (Note, usize) {
+/// Metadados da nota para o índice (nota, tamanho e trecho), sem alterar o arquivo.
+pub fn summarize(path: &Path, content: &str) -> (Note, usize, String) {
     let doc = Document::parse(content);
-    (doc.to_note(path), doc.chars())
+    (doc.to_note(path), doc.chars(), doc.excerpt())
 }
 
 fn load(path: &Path) -> Result<(String, Document), String> {
@@ -602,5 +625,15 @@ mod tests {
     fn data_utc() {
         assert_eq!(format_rfc3339(0), "1970-01-01T00:00:00Z");
         assert_eq!(format_rfc3339(1_709_210_096), "2024-02-29T12:34:56Z");
+    }
+
+    #[test]
+    fn trecho_sem_titulo_e_truncado() {
+        let doc = Document::parse("---\nid: a\n---\n# Título\n\n## Seção\nTexto  \nmais\n");
+        assert_eq!(doc.excerpt(), "Seção Texto mais");
+        let longo = format!("# T\n{}", "a".repeat(200));
+        let trecho = Document::parse(&longo).excerpt();
+        assert_eq!(trecho.chars().count(), EXCERPT_CHARS + 1);
+        assert!(trecho.ends_with('…'));
     }
 }

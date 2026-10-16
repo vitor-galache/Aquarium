@@ -52,6 +52,19 @@ export type IndexStatus = {
   noteCount: number;
 };
 
+/** Resumo de nota vindo do índice, para os cards do aquário. */
+export type NoteSummary = {
+  path: string;
+  title: string;
+  excerpt: string;
+  depth: Depth;
+  corrente: string | null;
+  cardume: string | null;
+  created: string;
+};
+
+export const listNotes = () => invoke<NoteSummary[]>("list_notes");
+
 export const indexStatus = () => invoke<IndexStatus>("index_status");
 
 export const onIndexStatus = (handler: (status: IndexStatus) => void) =>
