@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 
 export type Aquarium = {
   path: string;
@@ -42,3 +43,13 @@ export const saveNote = (
   corrente: string | null,
   cardume: string | null,
 ) => invoke<Note>("save_note", { path, body, depth, corrente, cardume });
+
+export type IndexStatus = {
+  indexing: boolean;
+  noteCount: number;
+};
+
+export const indexStatus = () => invoke<IndexStatus>("index_status");
+
+export const onIndexStatus = (handler: (status: IndexStatus) => void) =>
+  listen<IndexStatus>("index-status", (event) => handler(event.payload));

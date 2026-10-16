@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
 /// Pasta interna para índice e configuração do aquário.
-const INTERNAL_DIR: &str = ".aquarium";
+pub const INTERNAL_DIR: &str = ".aquarium";
 const CONFIG_FILE: &str = "config.json";
 /// Estado do app (fora da pasta do usuário) com a última pasta aberta.
 const STATE_FILE: &str = "state.json";
@@ -131,7 +131,7 @@ pub fn startup(app: AppHandle) -> Startup {
 
     // Não recria a pasta lembrada: se sumiu (disco removido, renomeada), avisamos.
     let result = if last.is_dir() {
-        prepare(&last)
+        prepare(&last).and_then(|a| crate::index::start(&app, &last).map(|()| a))
     } else {
         Err(format!(
             "Não encontramos a pasta {}. Ela pode ter sido movida, renomeada ou estar em um disco desconectado.",
@@ -157,6 +157,7 @@ pub fn startup(app: AppHandle) -> Startup {
 pub fn open_aquarium(app: AppHandle, path: String) -> Result<Aquarium, String> {
     let path = PathBuf::from(path);
     let aquarium = prepare(&path)?;
+    crate::index::start(&app, &path)?;
     save_state(
         &app,
         &AppState {

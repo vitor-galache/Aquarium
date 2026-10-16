@@ -20,13 +20,13 @@ const DEFAULT_DEPTH: &str = "superficie";
 #[derive(Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Note {
-    path: String,
-    id: String,
-    created: String,
-    depth: String,
-    corrente: Option<String>,
-    cardume: Option<String>,
-    title: String,
+    pub(crate) path: String,
+    pub(crate) id: String,
+    pub(crate) created: String,
+    pub(crate) depth: String,
+    pub(crate) corrente: Option<String>,
+    pub(crate) cardume: Option<String>,
+    pub(crate) title: String,
     body: String,
 }
 
@@ -332,6 +332,11 @@ pub fn write_atomic(path: &Path, content: &str) -> Result<(), String> {
         let _ = fs::remove_file(&tmp);
         format!("Não foi possível salvar {}: {e}", path.display())
     })
+}
+
+/// Metadados da nota para o índice, sem alterar o arquivo.
+pub fn summarize(path: &Path, content: &str) -> Note {
+    Document::parse(content).to_note(path)
 }
 
 /// Lê a nota; se faltar frontmatter (nota criada fora do app), completa e salva.
