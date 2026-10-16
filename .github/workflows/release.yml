@@ -62,3 +62,17 @@ jobs:
             **macOS:** `brew install --cask vitor-galache/tap/notesea`
 
             **Linux:** baixe o `.AppImage`, `.deb` ou `.rpm` em **Assets**.
+          generateReleaseNotes: true
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+      # Cópia com nome fixo para a landing linkar direto em
+      # releases/latest/download/<nome>, sem depender da versão.
+      - name: Upload with stable name
+        if: matrix.stable
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp ${{ matrix.bundle }} "${{ matrix.stable }}"
+          gh release upload "${{ github.ref_name }}" "${{ matrix.stable }}" --clobber
