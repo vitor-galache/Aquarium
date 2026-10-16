@@ -24,6 +24,8 @@ function App() {
   const [capturing, setCapturing] = useState(false);
   const [view, setView] = useState<View>({ kind: "aquario" });
   const [refreshKey, setRefreshKey] = useState(0);
+  const [focus, setFocus] = useState(false);
+  const focused = focus && view.kind === "nota";
 
   useEffect(() => {
     startup()
@@ -75,18 +77,22 @@ function App() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      <Sidebar
-        refreshKey={refreshKey}
-        activePath={view.kind === "nota" ? view.path : null}
-        onNewNote={() => void newNote()}
-        onOpenNote={(path) => setView({ kind: "nota", path })}
-        onHome={() => setView({ kind: "aquario" })}
-      />
+      {!focused && (
+        <Sidebar
+          refreshKey={refreshKey}
+          activePath={view.kind === "nota" ? view.path : null}
+          onNewNote={() => void newNote()}
+          onOpenNote={(path) => setView({ kind: "nota", path })}
+          onHome={() => setView({ kind: "aquario" })}
+        />
+      )}
       <main className="flex flex-1 flex-col gap-6 overflow-y-auto p-8">
         {view.kind === "nota" ? (
           <NotaAberta
             key={view.path}
             path={view.path}
+            focus={focused}
+            onFocusChange={setFocus}
             onBack={() => setView({ kind: "aquario" })}
             onOpenNote={(path) => {
               setRefreshKey((k) => k + 1);

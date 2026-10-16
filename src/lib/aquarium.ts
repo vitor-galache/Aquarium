@@ -65,6 +65,14 @@ export const duplicateNote = (path: string) =>
 /** Move a nota para a lixeira (`.lixeira/` dentro do aquário). */
 export const trashNote = (path: string) => invoke<void>("trash_note", { path });
 
+/** Grava uma imagem colada em `assets/` ao lado da nota; devolve o caminho relativo. */
+export const saveImage = async (note: string, file: Blob, extension: string) =>
+  invoke<string>("save_image", {
+    note,
+    bytes: Array.from(new Uint8Array(await file.arrayBuffer())),
+    extension,
+  });
+
 export const isConflict = (error: unknown) =>
   String(error).startsWith("conflito:");
 

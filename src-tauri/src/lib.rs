@@ -1,4 +1,5 @@
 mod aquarium;
+mod asset;
 mod capture;
 mod depth;
 mod index;
@@ -13,6 +14,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             aquarium::startup,
             aquarium::open_aquarium,
+            asset::save_image,
             index::index_status,
             index::list_notes,
             note::read_note,
