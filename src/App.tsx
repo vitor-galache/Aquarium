@@ -6,6 +6,7 @@ import { NotaAberta } from "./pages/NotaAberta";
 import { Button } from "./components/Button";
 import { CaptureModal } from "./components/CaptureModal";
 import {
+  createNote,
   onOpenCapture,
   startup,
   type Aquarium,
@@ -22,6 +23,7 @@ function App() {
   const [aquarium, setAquarium] = useState<Aquarium | null>(null);
   const [capturing, setCapturing] = useState(false);
   const [view, setView] = useState<View>({ kind: "aquario" });
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     startup()
@@ -57,12 +59,33 @@ function App() {
     );
   }
 
+  const newNote = async () => {
+    try {
+      const note = await createNote(
+        aquarium.path,
+        "Nova nota",
+        "# Nova nota\n",
+      );
+      setRefreshKey((k) => k + 1);
+      setView({ kind: "nota", path: note.path });
+    } catch (error) {
+      window.console.error("Não foi possível criar a nota:", error);
+    }
+  };
+
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      <Sidebar />
+      <Sidebar
+        refreshKey={refreshKey}
+        activePath={view.kind === "nota" ? view.path : null}
+        onNewNote={() => void newNote()}
+        onOpenNote={(path) => setView({ kind: "nota", path })}
+        onHome={() => setView({ kind: "aquario" })}
+      />
       <main className="flex flex-1 flex-col gap-6 overflow-y-auto p-8">
         {view.kind === "nota" ? (
           <NotaAberta
+            key={view.path}
             path={view.path}
             onBack={() => setView({ kind: "aquario" })}
           />
@@ -89,7 +112,13 @@ function App() {
         )}
       </main>
       {capturing && (
-        <CaptureModal dir={aquarium.path} onClose={() => setCapturing(false)} />
+        <CaptureModal
+          dir={aquarium.path}
+          onClose={() => {
+            setCapturing(false);
+            setRefreshKey((k) => k + 1);
+          }}
+        />
       )}
     </div>
   );
