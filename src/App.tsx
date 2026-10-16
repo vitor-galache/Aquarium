@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { ArrowLeftIcon } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Sidebar } from "./layout/Sidebar";
 import { TopBar } from "./layout/TopBar";
@@ -334,7 +335,8 @@ function App() {
                 variant="outline"
                 onClick={() => setView({ kind: "inicio" })}
               >
-                ← Notas
+                <ArrowLeftIcon />
+                Notas
               </Button>
               <h1 className="font-display text-heading font-semibold">
                 {view.title}

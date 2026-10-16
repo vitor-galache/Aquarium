@@ -364,7 +364,7 @@ export function Sidebar({
   const empty = tree.folders.length === 0 && tree.notes.length === 0;
 
   return (
-    <nav className="flex h-full w-[264px] shrink-0 flex-col border-r border-line bg-surface select-none">
+    <nav className="flex h-full w-sidebar shrink-0 flex-col border-r border-line bg-surface select-none">
       {/* Espaço dos botões da janela (barra de título escondida). */}
       <div data-tauri-drag-region className="h-11 shrink-0" />
 
@@ -388,7 +388,7 @@ export function Sidebar({
                   variant="ghost"
                   size="icon-sm"
                   aria-label={`Pasta aberta: ${folderName(root)}. Pastas recentes`}
-                  className={`${iconButton} text-brand-light`}
+                  className={`${iconButton} text-brand`}
                 >
                   <FolderIcon />
                 </Button>
@@ -428,7 +428,7 @@ export function Sidebar({
                           ),
                         );
                       }}
-                      className="flex size-5 cursor-pointer items-center justify-center rounded-xs text-muted opacity-0 group-hover:opacity-100 group-data-[highlighted]:opacity-100 hover:text-ink"
+                      className="flex size-5 cursor-pointer items-center justify-center rounded-xs text-muted opacity-0 group-hover:opacity-100 group-data-[highlighted]:opacity-100 hover:text-ink focus-visible:opacity-100"
                     >
                       <XIcon className="size-3.5" />
                     </button>

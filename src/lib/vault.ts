@@ -209,6 +209,12 @@ export const moveFolder = (folder: string, parent: string) =>
   invoke<string>("move_folder", { folder, parent });
 
 /** Teclas do atalho: `Ctrl+Shift+Space` → `["Ctrl", "Shift", "Espaço"]`. */
+/** Tecla de comando do sistema: ⌘ no macOS, Ctrl nos demais. */
+const MOD_KEY = navigator.userAgent.includes("Mac") ? "⌘" : "Ctrl+";
+
+/** Atalho da busca, como aparece nos botões. */
+export const SEARCH_KEY = `${MOD_KEY}K`;
+
 export const shortcutKeys = (shortcut: string) =>
   shortcut
     .split("+")

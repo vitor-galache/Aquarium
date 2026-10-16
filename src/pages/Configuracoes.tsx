@@ -4,6 +4,7 @@ import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -198,13 +199,11 @@ export function Configuracoes({ vault, onChange, onClose }: Props) {
       description:
         "Abre o Notesea em segundo plano ao ligar o computador, com o ícone no menu do sistema pronta para capturar.",
       control: (
-        <input
-          type="checkbox"
+        <Switch
           checked={autostart ?? false}
           disabled={autostart === null}
-          onChange={(e) => void toggleAutostart(e.target.checked)}
+          onCheckedChange={(checked) => void toggleAutostart(checked)}
           aria-label="Iniciar com o sistema"
-          className="size-4 cursor-pointer accent-brand"
         />
       ),
     },
@@ -270,12 +269,12 @@ export function Configuracoes({ vault, onChange, onClose }: Props) {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      <aside className="flex w-[264px] shrink-0 flex-col border-r border-line bg-surface select-none">
+      <aside className="flex w-sidebar shrink-0 flex-col border-r border-line bg-surface select-none">
         <div data-tauri-drag-region className="h-11 shrink-0" />
         <button
           type="button"
           onClick={onClose}
-          className="mx-2 flex h-8 cursor-pointer items-center gap-2 rounded-chip px-2.5 text-base text-muted transition-colors hover:bg-highlight/60 hover:text-ink"
+          className="mx-2 flex h-8 cursor-pointer items-center gap-2 rounded-chip px-2.5 text-base text-muted transition-colors hover:bg-highlight/60 hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-light"
         >
           <span aria-hidden="true">←</span>
           Voltar ao app
@@ -320,7 +319,7 @@ export function Configuracoes({ vault, onChange, onClose }: Props) {
         <div data-tauri-drag-region className="h-11 shrink-0" />
         <div className="mx-auto flex w-full max-w-[760px] flex-col gap-6 px-10 pt-4 pb-16">
           <header className="flex flex-col gap-1.5 border-b border-line pb-5">
-            <h1 className="font-display text-[22px] font-medium tracking-tight">
+            <h1 className="font-display text-heading font-medium tracking-tight">
               {searching ? "Resultados" : current.label}
             </h1>
             <p className="text-base text-muted">

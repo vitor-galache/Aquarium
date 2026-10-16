@@ -107,7 +107,7 @@ export function CaptureWindow() {
       >
         <span aria-live="polite" className="truncate">
           {error ? (
-            <span className="text-red-700">{error}</span>
+            <span className="text-danger">{error}</span>
           ) : (
             "A primeira linha vira o título"
           )}
