@@ -157,9 +157,13 @@ export const captureIdea = (dir: string, text: string) => {
   );
 };
 
-/** Pedido de captura vindo do atalho global ou da bandeja. */
+/** A janela de captura apareceu (atalho global ou clique no ícone da bandeja). */
 export const onOpenCapture = (handler: () => void) =>
   listen("open-capture", () => handler());
+
+/** A janela de captura criou uma nota. */
+export const onNotesChanged = (handler: () => void) =>
+  listen("notes-changed", () => handler());
 
 /** Resultado da busca; `snippet` marca os termos entre `\u0001` e `\u0002`. */
 export type SearchHit = {
