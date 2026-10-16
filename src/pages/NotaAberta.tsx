@@ -6,7 +6,7 @@ import {
   useState,
   type Ref,
 } from "react";
-import { Button } from "../components/Button";
+import { Button } from "@/components/ui/button";
 import { MarkdownEditor } from "../components/MarkdownEditor";
 import { replaceEditorText } from "../lib/editor";
 import { countWords } from "../lib/markdown";
@@ -230,7 +230,7 @@ export function NotaAberta({ ref, path, onBack, onOpenNote }: Props) {
   if (error && !note) {
     return (
       <div className="flex flex-col items-start gap-4">
-        <Button variant="secondary" onClick={onBack}>
+        <Button variant="outline" onClick={onBack}>
           ← Notas
         </Button>
         <p role="alert" className="text-md text-ink">

@@ -1,5 +1,15 @@
 import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Kbd } from "@/components/ui/kbd";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { FolderIcon, SearchIcon } from "../components/Icons";
 import {
   applyTheme,
@@ -148,21 +158,20 @@ export function Configuracoes({ vault, onChange, onClose }: Props) {
       stacked: true,
       control: (
         <div className="flex gap-2">
-          <input
+          <Input
             readOnly
             value={vault.path}
             aria-label="Pasta das notas"
-            className={`${control} min-w-0 flex-1 font-mono text-sm`}
+            className="min-w-0 flex-1 font-mono text-sm"
           />
-          <button
-            type="button"
+          <Button
+            variant="outline"
             disabled={busy}
             onClick={() => void changeFolder()}
-            className={`${control} flex shrink-0 cursor-pointer items-center gap-2 bg-surface hover:bg-highlight`}
           >
             <FolderIcon />
             Abrir pasta…
-          </button>
+          </Button>
         </div>
       ),
     },
@@ -184,12 +193,7 @@ export function Configuracoes({ vault, onChange, onClose }: Props) {
             <span className="text-muted">Pressione as teclas…</span>
           ) : (
             shortcutKeys(config.captureShortcut).map((key) => (
-              <kbd
-                key={key}
-                className="rounded-[4px] border border-line bg-surface px-1.5 font-mono text-xs"
-              >
-                {key}
-              </kbd>
+              <Kbd key={key}>{key}</Kbd>
             ))
           )}
         </button>
@@ -200,21 +204,24 @@ export function Configuracoes({ vault, onChange, onClose }: Props) {
       label: "Tema",
       description: "Claro, escuro ou seguindo o sistema.",
       control: (
-        <select
+        <Select
           value={config.theme}
           disabled={busy}
-          aria-label="Tema"
-          onChange={(e) =>
-            void update({ ...config, theme: e.target.value as Theme })
+          onValueChange={(value) =>
+            void update({ ...config, theme: value as Theme })
           }
-          className={`${control} cursor-pointer pr-8`}
         >
-          {THEMES.map((theme) => (
-            <option key={theme.value} value={theme.value}>
-              {theme.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger aria-label="Tema" className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {THEMES.map((theme) => (
+              <SelectItem key={theme.value} value={theme.value}>
+                {theme.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       ),
     },
   ];

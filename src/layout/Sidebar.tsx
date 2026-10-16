@@ -1,6 +1,7 @@
 import {
-  useEffect,
+  useRef,
   useState,
+  type ComponentProps,
   type DragEvent,
   type MouseEvent,
   type ReactNode,
@@ -15,6 +16,27 @@ import {
   NewFileIcon,
   NewFolderIcon,
 } from "../components/Icons";
+import { CheckIcon, XIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { forgetVault, recentVaults } from "../lib/vault";
 import { ancestors, countNotes, type Folder, type Item } from "../lib/tree";
 
@@ -52,8 +74,28 @@ const folderName = (path: string) =>
 const rowClass =
   "flex h-[30px] w-full cursor-pointer items-center gap-1.5 rounded-chip pr-2.5 text-left text-base transition-colors focus-visible:outline-2 focus-visible:outline-brand-light";
 
-const iconButton =
-  "flex size-[26px] cursor-pointer items-center justify-center rounded-chip text-muted transition-colors hover:bg-highlight hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-light";
+const iconButton = "size-[26px] rounded-chip text-muted hover:text-ink";
+
+/** Botão só de ícone, com o nome numa dica ao passar o mouse. */
+function IconButton({
+  label,
+  ...props
+}: ComponentProps<typeof Button> & { label: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={label}
+          className={iconButton}
+          {...props}
+        />
+      </TooltipTrigger>
+      <TooltipContent side="bottom">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
 
 /** Explorador de arquivos da pasta de notas: pastas e notas `.md`. */
 export function Sidebar({
@@ -77,11 +119,8 @@ export function Sidebar({
 }: Props) {
   // Pastas abertas/fechadas pelo usuário; as demais seguem a pasta atual.
   const [toggled, setToggled] = useState<Map<string, boolean>>(new Map());
-  const [menu, setMenu] = useState<{
-    x: number;
-    y: number;
-    items: MenuItem[];
-  } | null>(null);
+  /** Itens do menu de contexto da linha clicada com o botão direito. */
+  const [menu, setMenu] = useState<MenuItem[] | null>(null);
   const [renaming, setRenaming] = useState<{
     path: string;
     title: string;
@@ -103,14 +142,12 @@ export function Sidebar({
     mode: "before" | "after" | "into";
   } | null>(null);
 
-  const openMenu = (e: MouseEvent, items: MenuItem[]) => {
-    e.preventDefault();
-    // Mantém o menu dentro da janela.
-    setMenu({
-      x: Math.min(e.clientX, window.innerWidth - 200),
-      y: Math.min(e.clientY, window.innerHeight - items.length * 34 - 16),
-      items,
-    });
+  // Um só menu de contexto para a árvore toda (um por linha pesaria em
+  // pastas grandes); a linha clicada informa os itens antes de ele abrir.
+  const menuRef = useRef(false);
+  const openMenu = (_: MouseEvent, items: MenuItem[]) => {
+    menuRef.current = true;
+    setMenu(items);
   };
 
   /** O item arrastado pode entrar nesta pasta? (nunca nela mesma ou abaixo) */
@@ -191,40 +228,13 @@ export function Sidebar({
           ? "shadow-[inset_0_2px_0_var(--color-brand-light)]"
           : "shadow-[inset_0_-2px_0_var(--color-brand-light)]";
 
-  useEffect(() => {
-    if (!recent) return;
-    const close = () => setRecent(null);
-    window.addEventListener("mousedown", close);
-    window.addEventListener("blur", close);
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("mousedown", close);
-      window.removeEventListener("blur", close);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [recent]);
-
-  const toggleRecent = () => {
-    if (recent) return setRecent(null);
+  const loadRecent = (open: boolean) => {
+    if (!open) return setRecent(null);
     recentVaults().then(setRecent, (error: unknown) => {
       window.console.error("Não foi possível ler as pastas recentes:", error);
       setRecent([]);
     });
   };
-
-  useEffect(() => {
-    if (!menu) return;
-    const close = () => setMenu(null);
-    window.addEventListener("mousedown", close);
-    window.addEventListener("blur", close);
-    window.addEventListener("keydown", close);
-    return () => {
-      window.removeEventListener("mousedown", close);
-      window.removeEventListener("blur", close);
-      window.removeEventListener("keydown", close);
-    };
-  }, [menu]);
 
   const currentAncestors = new Set(ancestors(currentFolder));
   const isExpanded = (path: string) =>
@@ -364,107 +374,79 @@ export function Sidebar({
       </button>
 
       <div className="relative flex items-center gap-1 py-1.5 pr-2.5 pl-2.5">
-        <button
-          type="button"
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={toggleRecent}
-          title={`${folderName(root)}\n${root}`}
-          aria-label={`Pasta aberta: ${folderName(root)}. Pastas recentes`}
-          aria-haspopup="menu"
-          aria-expanded={recent !== null}
-          className={`${iconButton} text-brand-light`}
-        >
-          <FolderIcon />
-        </button>
-        {recent && (
-          <div
-            role="menu"
-            onMouseDown={(e) => e.stopPropagation()}
-            className="absolute top-full left-2.5 z-50 flex w-[300px] flex-col gap-0.5 rounded-card border border-line bg-surface p-1 shadow-xl"
-          >
-            <p className="px-3 pt-1.5 pb-1 text-2xs font-semibold tracking-widest text-muted uppercase">
+        <DropdownMenu open={recent !== null} onOpenChange={loadRecent}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Pasta aberta: ${folderName(root)}. Pastas recentes`}
+                  className={`${iconButton} text-brand-light`}
+                >
+                  <FolderIcon />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{root}</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent align="start" className="w-[300px]">
+            <DropdownMenuLabel className="text-2xs font-semibold tracking-widest text-muted uppercase">
               Pastas recentes
-            </p>
-            {recent.map((path) => {
+            </DropdownMenuLabel>
+            {recent?.map((path) => {
               const current = path === root;
               return (
-                <div key={path} className="group flex items-center">
-                  <button
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={current}
-                    title={path}
-                    onClick={() => {
-                      setRecent(null);
-                      void onSwitchVault(path);
-                    }}
-                    className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-control px-3 py-1.5 text-left text-md text-ink hover:bg-highlight"
-                  >
-                    <span className="w-3 shrink-0 text-brand-light">
-                      {current ? "✓" : ""}
-                    </span>
-                    <span className="truncate">{folderName(path)}</span>
-                  </button>
+                <DropdownMenuItem
+                  key={path}
+                  title={path}
+                  onSelect={() => void onSwitchVault(path)}
+                  className="group"
+                >
+                  <span className="w-3 shrink-0 text-brand-light">
+                    {current && <CheckIcon />}
+                  </span>
+                  <span className="flex-1 truncate">{folderName(path)}</span>
                   {!current && (
                     <button
                       type="button"
                       title="Remover da lista"
                       aria-label={`Remover ${folderName(path)} da lista`}
-                      onClick={() =>
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
                         forgetVault(path).then(setRecent, (error: unknown) =>
                           window.console.error(
                             "Não foi possível remover a pasta da lista:",
                             error,
                           ),
-                        )
-                      }
-                      className={`${iconButton} opacity-0 group-hover:opacity-100 focus-visible:opacity-100`}
+                        );
+                      }}
+                      className="flex size-5 cursor-pointer items-center justify-center rounded-xs text-muted opacity-0 group-hover:opacity-100 group-data-[highlighted]:opacity-100 hover:text-ink"
                     >
-                      ×
+                      <XIcon className="size-3.5" />
                     </button>
                   )}
-                </div>
+                </DropdownMenuItem>
               );
             })}
-            <div className="my-0.5 border-t border-line" />
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setRecent(null);
-                void onSwitchVault(null);
-              }}
-              className="w-full cursor-pointer rounded-control px-3 py-1.5 text-left text-md text-ink hover:bg-highlight"
-            >
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => void onSwitchVault(null)}>
               Abrir pasta…
-            </button>
-          </div>
-        )}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <h2 className="flex-1 text-2xs font-semibold tracking-widest text-muted uppercase">
           Arquivos
         </h2>
-        <button
-          type="button"
-          title="Nova nota"
-          aria-label="Nova nota"
-          onClick={onNewNote}
-          className={iconButton}
-        >
+        <IconButton label="Nova nota" onClick={onNewNote}>
           <NewFileIcon />
-        </button>
-        <button
-          type="button"
-          title="Nova pasta"
-          aria-label="Nova pasta"
-          onClick={() => setNewFolder("")}
-          className={iconButton}
-        >
+        </IconButton>
+        <IconButton label="Nova pasta" onClick={() => setNewFolder("")}>
           <NewFolderIcon />
-        </button>
-        <button
-          type="button"
-          title="Recolher tudo"
-          aria-label="Recolher tudo"
+        </IconButton>
+        <IconButton
+          label="Recolher tudo"
           onClick={() => {
             const closed = new Map<string, boolean>();
             const walk = (f: Folder) =>
@@ -472,63 +454,80 @@ export function Sidebar({
             walk(tree);
             setToggled(closed);
           }}
-          className={iconButton}
         >
           <CollapseIcon />
-        </button>
+        </IconButton>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pt-0.5 pb-3">
-        {newFolder !== null && (
-          <label className="mb-px flex h-[30px] items-center gap-1.5 pl-[18px]">
-            <FolderIcon className="shrink-0 text-brand-light" />
-            <input
-              autoFocus
-              value={newFolder}
-              placeholder={
-                currentFolder
-                  ? `Nova pasta em ${currentFolder.split("/").pop()}`
-                  : "Nova pasta"
-              }
-              aria-label="Nome da nova pasta"
-              onChange={(e) => setNewFolder(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && newFolder.trim()) {
-                  onNewFolder(newFolder.trim());
-                  setNewFolder(null);
-                }
-                if (e.key === "Escape") setNewFolder(null);
-              }}
-              onBlur={() => setNewFolder(null)}
-              className="h-[30px] min-w-0 flex-1 rounded-chip border border-brand-light bg-canvas px-2 text-base text-ink outline-none placeholder:text-muted"
-            />
-          </label>
-        )}
-        {empty && newFolder === null ? (
-          <p className="px-2.5 py-1 text-base text-muted">
-            Nenhuma nota ainda.
-          </p>
-        ) : (
-          <ul
-            className={`flex flex-1 flex-col gap-px rounded-chip ${
-              drop?.key === "" ? "ring-1 ring-brand-light ring-inset" : ""
-            }`}
-            onDragOver={(e) => {
-              // Soltar fora das pastas leva o item para a raiz.
-              if (!drag || !canEnter("")) return;
-              e.preventDefault();
-              if (drop?.key !== "") setDrop({ key: "", mode: "into" });
-            }}
-            onDrop={(e) => {
-              e.preventDefault();
-              if (drop?.key === "") moveInto("");
-              endDrag();
-            }}
-          >
-            {folderRows(tree, 0)}
-          </ul>
-        )}
-      </div>
+      <ContextMenu onOpenChange={(open) => !open && setMenu(null)}>
+        <ContextMenuTrigger
+          asChild
+          onContextMenu={(e) => {
+            // Fora de uma linha não há menu.
+            if (!menuRef.current) e.preventDefault();
+            menuRef.current = false;
+          }}
+        >
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pt-0.5 pb-3">
+            {newFolder !== null && (
+              <label className="mb-px flex h-[30px] items-center gap-1.5 pl-[18px]">
+                <FolderIcon className="shrink-0 text-brand-light" />
+                <input
+                  autoFocus
+                  value={newFolder}
+                  placeholder={
+                    currentFolder
+                      ? `Nova pasta em ${currentFolder.split("/").pop()}`
+                      : "Nova pasta"
+                  }
+                  aria-label="Nome da nova pasta"
+                  onChange={(e) => setNewFolder(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newFolder.trim()) {
+                      onNewFolder(newFolder.trim());
+                      setNewFolder(null);
+                    }
+                    if (e.key === "Escape") setNewFolder(null);
+                  }}
+                  onBlur={() => setNewFolder(null)}
+                  className="h-[30px] min-w-0 flex-1 rounded-chip border border-brand-light bg-canvas px-2 text-base text-ink outline-none placeholder:text-muted"
+                />
+              </label>
+            )}
+            {empty && newFolder === null ? (
+              <p className="px-2.5 py-1 text-base text-muted">
+                Nenhuma nota ainda.
+              </p>
+            ) : (
+              <ul
+                className={`flex flex-1 flex-col gap-px rounded-chip ${
+                  drop?.key === "" ? "ring-1 ring-brand-light ring-inset" : ""
+                }`}
+                onDragOver={(e) => {
+                  // Soltar fora das pastas leva o item para a raiz.
+                  if (!drag || !canEnter("")) return;
+                  e.preventDefault();
+                  if (drop?.key !== "") setDrop({ key: "", mode: "into" });
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (drop?.key === "") moveInto("");
+                  endDrag();
+                }}
+              >
+                {folderRows(tree, 0)}
+              </ul>
+            )}
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="min-w-[160px]">
+          {menu?.map(([label, action]) => (
+            <ContextMenuItem key={label} onSelect={action}>
+              {label}
+            </ContextMenuItem>
+          ))}
+        </ContextMenuContent>
+      </ContextMenu>
 
       <div className="border-t border-line px-2 py-2.5">
         <button
@@ -540,31 +539,6 @@ export function Sidebar({
           Configurações
         </button>
       </div>
-
-      {menu && (
-        <ul
-          role="menu"
-          style={{ left: menu.x, top: menu.y }}
-          onMouseDown={(e) => e.stopPropagation()}
-          className="fixed z-50 flex min-w-[160px] flex-col gap-0.5 rounded-card border border-line bg-surface p-1 shadow-xl"
-        >
-          {menu.items.map(([label, action]) => (
-            <li key={label}>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setMenu(null);
-                  action();
-                }}
-                className="w-full cursor-pointer rounded-control px-3 py-1.5 text-left text-md text-ink hover:bg-highlight"
-              >
-                {label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
     </nav>
   );
 }
