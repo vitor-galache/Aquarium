@@ -24,7 +24,7 @@ pub const STATUS_EVENT: &str = "index-status";
 const DEBOUNCE: Duration = Duration::from_millis(300);
 
 /// Versão do esquema; ao mudar, a tabela `notes` é reconstruída (os sinais ficam).
-const SCHEMA_VERSION: i64 = 1;
+const SCHEMA_VERSION: i64 = 2;
 
 const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS notes (
@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS notes (
     corrente TEXT,
     cardume TEXT,
     created TEXT NOT NULL,
+    excerpt TEXT NOT NULL,
     chars INTEGER NOT NULL,
     mtime INTEGER NOT NULL,
     size INTEGER NOT NULL
@@ -154,11 +155,11 @@ pub fn sync(conn: &mut Connection, root: &Path) -> Result<usize, String> {
         let Ok(content) = fs::read_to_string(path) else {
             continue;
         };
-        let (n, chars) = note::summarize(path, &content);
+        let (n, chars, excerpt) = note::summarize(path, &content);
         tx.execute(
-            "INSERT OR REPLACE INTO notes (path, id, title, depth, corrente, cardume, created, chars, mtime, size)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-            params![n.path, n.id, n.title, n.depth, n.corrente, n.cardume, n.created, chars as i64, mtime, size],
+            "INSERT OR REPLACE INTO notes (path, id, title, depth, corrente, cardume, created, excerpt, chars, mtime, size)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            params![n.path, n.id, n.title, n.depth, n.corrente, n.cardume, n.created, excerpt, chars as i64, mtime, size],
         )
         .map_err(err)?;
     }
@@ -302,6 +303,50 @@ pub fn index_status(state: tauri::State<IndexState>) -> IndexStatus {
     state.status.lock().unwrap().clone()
 }
 
+/// Resumo de uma nota para os cards do aquário.
+#[derive(Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteSummary {
+    path: String,
+    title: String,
+    excerpt: String,
+    depth: String,
+    corrente: Option<String>,
+    cardume: Option<String>,
+    created: String,
+}
+
+/// Notas indexadas, das mais recentes para as mais antigas.
+pub fn notes(conn: &Connection) -> Result<Vec<NoteSummary>, String> {
+    let err = |e: rusqlite::Error| e.to_string();
+    let mut stmt = conn
+        .prepare(
+            "SELECT path, title, excerpt, depth, corrente, cardume, created
+             FROM notes ORDER BY created DESC, title",
+        )
+        .map_err(err)?;
+    stmt.query_map([], |r| {
+        Ok(NoteSummary {
+            path: r.get(0)?,
+            title: r.get(1)?,
+            excerpt: r.get(2)?,
+            depth: r.get(3)?,
+            corrente: r.get(4)?,
+            cardume: r.get(5)?,
+            created: r.get(6)?,
+        })
+    })
+    .map_err(err)?
+    .collect::<Result<_, _>>()
+    .map_err(err)
+}
+
+#[tauri::command]
+pub fn list_notes(state: tauri::State<IndexState>) -> Result<Vec<NoteSummary>, String> {
+    let conn = state.db().ok_or("Nenhum aquário aberto.")?;
+    notes(&conn)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -323,6 +368,9 @@ mod tests {
             .query_row("SELECT title FROM notes WHERE id = 'a'", [], |r| r.get(0))
             .unwrap();
         assert_eq!(title, "A");
+        let listed = notes(&conn).unwrap();
+        assert_eq!(listed.len(), 2);
+        assert!(listed.iter().any(|n| n.title == "A" && n.depth == "fundo"));
 
         // Edição, remoção e renomeação feitas fora do app.
         fs::write(root.join("a.md"), "---\nid: a\n---\n# A editada\n").unwrap();

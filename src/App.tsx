@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Sidebar } from "./layout/Sidebar";
 import { MeuAquario } from "./pages/MeuAquario";
 import { PrimeiroAcesso } from "./pages/PrimeiroAcesso";
+import { NotaAberta } from "./pages/NotaAberta";
+import { Button } from "./components/Button";
 import { CaptureModal } from "./components/CaptureModal";
 import {
   onOpenCapture,
@@ -10,10 +12,16 @@ import {
   type Startup,
 } from "./lib/aquarium";
 
+type View =
+  | { kind: "aquario" }
+  | { kind: "nota"; path: string }
+  | { kind: "em-breve"; title: string };
+
 function App() {
   const [initial, setInitial] = useState<Startup | null>(null);
   const [aquarium, setAquarium] = useState<Aquarium | null>(null);
   const [capturing, setCapturing] = useState(false);
+  const [view, setView] = useState<View>({ kind: "aquario" });
 
   useEffect(() => {
     startup()
@@ -53,7 +61,33 @@ function App() {
     <div className="flex h-screen w-screen overflow-hidden">
       <Sidebar />
       <main className="flex flex-1 flex-col gap-6 overflow-y-auto p-8">
-        <MeuAquario aquarium={aquarium} onCapture={() => setCapturing(true)} />
+        {view.kind === "nota" ? (
+          <NotaAberta
+            path={view.path}
+            onBack={() => setView({ kind: "aquario" })}
+          />
+        ) : view.kind === "em-breve" ? (
+          <div className="flex flex-col items-start gap-4">
+            <Button
+              variant="secondary"
+              onClick={() => setView({ kind: "aquario" })}
+            >
+              ← Meu aquário
+            </Button>
+            <h1 className="font-display text-heading font-semibold">
+              {view.title}
+            </h1>
+            <p className="text-md text-muted">Em breve.</p>
+          </div>
+        ) : (
+          <MeuAquario
+            aquarium={aquarium}
+            onCapture={() => setCapturing(true)}
+            onOpenNote={(path) => setView({ kind: "nota", path })}
+            onTriage={() => setView({ kind: "em-breve", title: "Triagem" })}
+            onRefind={() => setView({ kind: "em-breve", title: "Reencontrar" })}
+          />
+        )}
       </main>
       {capturing && (
         <CaptureModal dir={aquarium.path} onClose={() => setCapturing(false)} />
