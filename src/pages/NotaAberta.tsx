@@ -5,6 +5,7 @@ import { replaceEditorText } from "../lib/editor";
 import {
   duplicateNote,
   isConflict,
+  parseTags,
   renameNote,
   trashNote,
   peekNote,
@@ -39,14 +40,15 @@ export function NotaAberta({ path, onBack, onOpenNote, onDeleted }: Props) {
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [corrente, setCorrente] = useState("");
   const [cardume, setCardume] = useState("");
+  const [tags, setTags] = useState("");
   const [renaming, setRenaming] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const editorArea = useRef<HTMLDivElement>(null);
   // Estado mais recente para o autosave, sem recriar timers a cada tecla.
   const text = useRef("");
   const known = useRef<string | null>(null);
-  const meta = useRef({ corrente: "", cardume: "" });
-  const savedMeta = useRef({ corrente: "", cardume: "" });
+  const meta = useRef({ corrente: "", cardume: "", tags: "" });
+  const savedMeta = useRef({ corrente: "", cardume: "", tags: "" });
   const timer = useRef<number | undefined>(undefined);
   const saving = useRef<Promise<void> | null>(null);
   const conflict = useRef(false);
@@ -61,9 +63,11 @@ export function NotaAberta({ path, onBack, onOpenNote, onDeleted }: Props) {
         meta.current = savedMeta.current = {
           corrente: n.corrente ?? "",
           cardume: n.cardume ?? "",
+          tags: n.tags.join(", "),
         };
         setCorrente(meta.current.corrente);
         setCardume(meta.current.cardume);
+        setTags(meta.current.tags);
         setNote(n);
       },
       (e: unknown) => current && setError(String(e)),
@@ -76,7 +80,8 @@ export function NotaAberta({ path, onBack, onOpenNote, onDeleted }: Props) {
   const dirty = () =>
     text.current !== known.current ||
     meta.current.corrente !== savedMeta.current.corrente ||
-    meta.current.cardume !== savedMeta.current.cardume;
+    meta.current.cardume !== savedMeta.current.cardume ||
+    meta.current.tags !== savedMeta.current.tags;
 
   const save = useCallback(async (): Promise<void> => {
     window.clearTimeout(timer.current);
@@ -91,6 +96,7 @@ export function NotaAberta({ path, onBack, onOpenNote, onDeleted }: Props) {
       known.current,
       fields.corrente || null,
       fields.cardume || null,
+      parseTags(fields.tags),
     ).then(
       (saved) => {
         known.current = body;
@@ -180,10 +186,11 @@ export function NotaAberta({ path, onBack, onOpenNote, onDeleted }: Props) {
       onOpenNote((await renameNote(path, title)).path);
     });
 
-  const onMeta = (field: "corrente" | "cardume", value: string) => {
+  const onMeta = (field: "corrente" | "cardume" | "tags", value: string) => {
     meta.current = { ...meta.current, [field]: value };
     if (field === "corrente") setCorrente(value);
-    else setCardume(value);
+    else if (field === "cardume") setCardume(value);
+    else setTags(value);
   };
 
   if (error && !note) {
@@ -321,6 +328,7 @@ export function NotaAberta({ path, onBack, onOpenNote, onDeleted }: Props) {
             [
               ["corrente", "Corrente", corrente, "Ex.: System Design"],
               ["cardume", "Cardume", cardume, "Ex.: Cache"],
+              ["tags", "Tags", tags, "Separadas por vírgula"],
             ] as const
           ).map(([field, label, value, placeholder]) => (
             <label key={field} className="flex flex-col gap-1">

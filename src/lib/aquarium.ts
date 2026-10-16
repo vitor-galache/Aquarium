@@ -27,6 +27,7 @@ export type Note = {
   depth: Depth;
   corrente: string | null;
   cardume: string | null;
+  tags: string[];
   title: string;
   body: string;
 };
@@ -43,7 +44,16 @@ export const saveNote = (
   expected: string | null,
   corrente: string | null,
   cardume: string | null,
-) => invoke<Note>("save_note", { path, body, expected, corrente, cardume });
+  tags: string[],
+) =>
+  invoke<Note>("save_note", {
+    path,
+    body,
+    expected,
+    corrente,
+    cardume,
+    tags,
+  });
 
 /** Troca o `# título` e o nome do arquivo; devolve a nota no novo caminho. */
 export const renameNote = (path: string, title: string) =>
@@ -74,10 +84,23 @@ export type NoteSummary = {
   depth: Depth;
   corrente: string | null;
   cardume: string | null;
+  /** Subpasta relativa ao aquário (`""` na raiz). */
+  folder: string;
+  tags: string[];
   created: string;
   /** Última edição do arquivo, em ms desde a época Unix. */
   modified: number;
 };
+
+/** Tags digitadas separadas por vírgula. */
+export const parseTags = (text: string) => [
+  ...new Set(
+    text
+      .split(",")
+      .map((t) => t.trim().replace(/^#+/, "").trim())
+      .filter(Boolean),
+  ),
+];
 
 export const listNotes = () => invoke<NoteSummary[]>("list_notes");
 

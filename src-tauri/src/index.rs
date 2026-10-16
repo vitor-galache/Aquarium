@@ -24,7 +24,7 @@ pub const STATUS_EVENT: &str = "index-status";
 const DEBOUNCE: Duration = Duration::from_millis(300);
 
 /// Versão do esquema; ao mudar, a tabela `notes` é reconstruída (os sinais ficam).
-const SCHEMA_VERSION: i64 = 2;
+const SCHEMA_VERSION: i64 = 3;
 
 const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS notes (
@@ -34,6 +34,8 @@ CREATE TABLE IF NOT EXISTS notes (
     depth TEXT NOT NULL,
     corrente TEXT,
     cardume TEXT,
+    folder TEXT NOT NULL,
+    tags TEXT NOT NULL,
     created TEXT NOT NULL,
     excerpt TEXT NOT NULL,
     chars INTEGER NOT NULL,
@@ -118,6 +120,19 @@ fn is_note(path: &Path) -> bool {
         .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
 }
 
+/// Subpasta da nota relativa ao aquário (`""` na raiz), sempre com `/`.
+fn folder_of(root: &Path, path: &Path) -> String {
+    path.parent()
+        .and_then(|dir| dir.strip_prefix(root).ok())
+        .map(|rel| {
+            rel.components()
+                .map(|c| c.as_os_str().to_string_lossy())
+                .collect::<Vec<_>>()
+                .join("/")
+        })
+        .unwrap_or_default()
+}
+
 /// Sincroniza o índice com a pasta e devolve o número de notas.
 pub fn sync(conn: &mut Connection, root: &Path) -> Result<usize, String> {
     let mut files = HashMap::new();
@@ -156,10 +171,12 @@ pub fn sync(conn: &mut Connection, root: &Path) -> Result<usize, String> {
             continue;
         };
         let (n, chars, excerpt) = note::summarize(path, &content);
+        let folder = folder_of(root, path);
+        let tags = n.tags.join("\n");
         tx.execute(
-            "INSERT OR REPLACE INTO notes (path, id, title, depth, corrente, cardume, created, excerpt, chars, mtime, size)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-            params![n.path, n.id, n.title, n.depth, n.corrente, n.cardume, n.created, excerpt, chars as i64, mtime, size],
+            "INSERT OR REPLACE INTO notes (path, id, title, depth, corrente, cardume, folder, tags, created, excerpt, chars, mtime, size)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+            params![n.path, n.id, n.title, n.depth, n.corrente, n.cardume, folder, tags, n.created, excerpt, chars as i64, mtime, size],
         )
         .map_err(err)?;
     }
@@ -327,6 +344,9 @@ pub struct NoteSummary {
     depth: String,
     corrente: Option<String>,
     cardume: Option<String>,
+    /// Subpasta relativa ao aquário (`""` na raiz).
+    folder: String,
+    tags: Vec<String>,
     created: String,
     /// Última edição do arquivo, em milissegundos desde a época Unix.
     modified: i64,
@@ -337,7 +357,7 @@ pub fn notes(conn: &Connection) -> Result<Vec<NoteSummary>, String> {
     let err = |e: rusqlite::Error| e.to_string();
     let mut stmt = conn
         .prepare(
-            "SELECT path, title, excerpt, depth, corrente, cardume, created, mtime
+            "SELECT path, title, excerpt, depth, corrente, cardume, folder, tags, created, mtime
              FROM notes ORDER BY mtime DESC, title",
         )
         .map_err(err)?;
@@ -349,8 +369,10 @@ pub fn notes(conn: &Connection) -> Result<Vec<NoteSummary>, String> {
             depth: r.get(3)?,
             corrente: r.get(4)?,
             cardume: r.get(5)?,
-            created: r.get(6)?,
-            modified: r.get(7)?,
+            folder: r.get(6)?,
+            tags: r.get::<_, String>(7)?.lines().map(str::to_string).collect(),
+            created: r.get(8)?,
+            modified: r.get(9)?,
         })
     })
     .map_err(err)?
@@ -376,7 +398,7 @@ mod tests {
         fs::create_dir_all(root.join("sub")).unwrap();
         fs::create_dir_all(&internal).unwrap();
         fs::write(root.join("a.md"), "---\nid: a\ndepth: fundo\n---\n# A\n").unwrap();
-        fs::write(root.join("sub/b.md"), "# B\n").unwrap();
+        fs::write(root.join("sub/b.md"), "---\ntags: [x, y]\n---\n# B\n").unwrap();
         fs::write(internal.join("x.md"), "ignorado").unwrap();
 
         let mut conn = open_db(&root).unwrap();
@@ -387,7 +409,16 @@ mod tests {
         assert_eq!(title, "A");
         let listed = notes(&conn).unwrap();
         assert_eq!(listed.len(), 2);
-        assert!(listed.iter().any(|n| n.title == "A" && n.depth == "fundo"));
+        assert!(
+            listed
+                .iter()
+                .any(|n| n.title == "A" && n.depth == "fundo" && n.folder.is_empty())
+        );
+        assert!(
+            listed
+                .iter()
+                .any(|n| n.folder == "sub" && n.tags == ["x", "y"])
+        );
 
         // Edição, remoção e renomeação feitas fora do app.
         fs::write(root.join("a.md"), "---\nid: a\n---\n# A editada\n").unwrap();
