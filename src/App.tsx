@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Sidebar } from "./layout/Sidebar";
 import { MeuAquario } from "./pages/MeuAquario";
 import { PrimeiroAcesso } from "./pages/PrimeiroAcesso";
-import { NotaAberta } from "./pages/NotaAberta";
+import { NotaAberta, type NotaAbertaHandle } from "./pages/NotaAberta";
 import { Button } from "./components/Button";
 import { CaptureModal } from "./components/CaptureModal";
 import { SearchModal } from "./components/SearchModal";
@@ -11,6 +11,9 @@ import { TitleBar } from "./components/TitleBar";
 import {
   applyTheme,
   createNote,
+  duplicateNote,
+  renameNote,
+  trashNote,
   onOpenCapture,
   startup,
   type Aquarium,
@@ -31,6 +34,7 @@ function App() {
   const [view, setView] = useState<View>({ kind: "aquario" });
   const [refreshKey, setRefreshKey] = useState(0);
   const [focus, setFocus] = useState(false);
+  const openNote = useRef<NotaAbertaHandle>(null);
   const focused = focus && view.kind === "nota";
 
   useEffect(() => {
@@ -98,6 +102,21 @@ function App() {
     }
   };
 
+  /** Ação de arquivo do explorador; na nota aberta, grava o pendente antes. */
+  const fileAction = (path: string, action: () => Promise<void>) => {
+    const refresh = () => setRefreshKey((k) => k + 1);
+    if (view.kind === "nota" && view.path === path && openNote.current) {
+      // Erros ficam com a nota aberta, que mostra e destrava o autosave.
+      void openNote.current.run(() => action().then(refresh));
+    } else {
+      action().then(refresh, (error: unknown) =>
+        window.console.error("Não foi possível alterar a nota:", error),
+      );
+    }
+  };
+
+  const isOpen = (path: string) => view.kind === "nota" && view.path === path;
+
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       <TitleBar />
@@ -109,12 +128,31 @@ function App() {
           onOpenNote={(path) => setView({ kind: "nota", path })}
           onHome={() => setView({ kind: "aquario" })}
           onSettings={() => setSettings(true)}
+          onRename={(path, title) =>
+            fileAction(path, async () => {
+              const note = await renameNote(path, title);
+              if (isOpen(path)) setView({ kind: "nota", path: note.path });
+            })
+          }
+          onDuplicate={(path) =>
+            fileAction(path, async () => {
+              const note = await duplicateNote(path);
+              setView({ kind: "nota", path: note.path });
+            })
+          }
+          onTrash={(path) =>
+            fileAction(path, async () => {
+              await trashNote(path);
+              if (isOpen(path)) setView({ kind: "aquario" });
+            })
+          }
         />
       )}
       <main className="flex flex-1 flex-col gap-6 overflow-y-auto p-8">
         {view.kind === "nota" ? (
           <NotaAberta
             key={view.path}
+            ref={openNote}
             path={view.path}
             focus={focused}
             onFocusChange={setFocus}
@@ -122,10 +160,6 @@ function App() {
             onOpenNote={(path) => {
               setRefreshKey((k) => k + 1);
               setView({ kind: "nota", path });
-            }}
-            onDeleted={() => {
-              setRefreshKey((k) => k + 1);
-              setView({ kind: "aquario" });
             }}
           />
         ) : view.kind === "em-breve" ? (
