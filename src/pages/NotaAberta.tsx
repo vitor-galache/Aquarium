@@ -35,8 +35,6 @@ type Props = {
   onBack: () => void;
   /** Abre outra nota (ex.: um `[[link]]`). */
   onOpenNote: (path: string) => void;
-  focus: boolean;
-  onFocusChange: (focus: boolean) => void;
 };
 
 /** Espera depois da última tecla antes de gravar. */
@@ -54,21 +52,11 @@ const time = (date: Date) =>
   date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
 /** Nota aberta: editor Markdown com autosave e metadados na lateral. */
-export function NotaAberta({
-  ref,
-  path,
-  onBack,
-  onOpenNote,
-  focus,
-  onFocusChange,
-}: Props) {
+export function NotaAberta({ ref, path, onBack, onOpenNote }: Props) {
   const [note, setNote] = useState<Note | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("salvo");
   const [savedAt, setSavedAt] = useState<Date | null>(null);
-  const [corrente, setCorrente] = useState("");
-  const [cardume, setCardume] = useState("");
-  const [tags, setTags] = useState("");
   const [words, setWords] = useState(0);
   const notes = useRef<NoteSummary[]>([]);
   const editorArea = useRef<HTMLDivElement>(null);
@@ -93,9 +81,6 @@ export function NotaAberta({
           cardume: n.cardume ?? "",
           tags: n.tags.join(", "),
         };
-        setCorrente(meta.current.corrente);
-        setCardume(meta.current.cardume);
-        setTags(meta.current.tags);
         setWords(countWords(n.body));
         setNote(n);
       },
@@ -113,21 +98,6 @@ export function NotaAberta({
       () => {},
     );
   }, [path]);
-
-  // ⌘/Ctrl+Shift+F alterna o modo foco; Esc sai dele.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      const mod = event.metaKey || event.ctrlKey;
-      if (mod && event.shiftKey && event.key.toLowerCase() === "f") {
-        event.preventDefault();
-        onFocusChange(!focus);
-      } else if (event.key === "Escape" && focus) {
-        onFocusChange(false);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [focus, onFocusChange]);
 
   const dirty = () =>
     text.current !== known.current ||
@@ -257,13 +227,6 @@ export function NotaAberta({
     }
   };
 
-  const onMeta = (field: "corrente" | "cardume" | "tags", value: string) => {
-    meta.current = { ...meta.current, [field]: value };
-    if (field === "corrente") setCorrente(value);
-    else if (field === "cardume") setCardume(value);
-    else setTags(value);
-  };
-
   if (error && !note) {
     return (
       <div className="flex flex-col items-start gap-4">
@@ -281,33 +244,17 @@ export function NotaAberta({
 
   return (
     <div className="flex min-h-full flex-col gap-4">
-      {focus ? (
-        <div className="flex justify-end">
-          <Button variant="secondary" onClick={() => onFocusChange(false)}>
-            Sair do modo foco
-          </Button>
-        </div>
-      ) : (
-        <div className="flex items-center justify-end gap-4">
-          <span aria-live="polite" className="text-sm text-muted">
-            {status === "salvo" && savedAt ? (
-              <span className="text-success">✓ Salvo neste computador</span>
-            ) : status === "salvando" || status === "pendente" ? (
-              "Salvando…"
-            ) : status === "erro" ? (
-              <span className="text-red-700">Não foi possível salvar</span>
-            ) : null}
-          </span>
-          <button
-            type="button"
-            title="⌘⇧F / Ctrl+Shift+F"
-            onClick={() => onFocusChange(true)}
-            className="cursor-pointer rounded-control px-2 py-1 text-sm text-muted transition-colors hover:bg-highlight hover:text-brand focus-visible:outline-2 focus-visible:outline-brand-light"
-          >
-            Modo foco
-          </button>
-        </div>
-      )}
+      <div className="flex items-center justify-end gap-4">
+        <span aria-live="polite" className="text-sm text-muted">
+          {status === "salvo" && savedAt ? (
+            <span className="text-success">✓ Salvo neste computador</span>
+          ) : status === "salvando" || status === "pendente" ? (
+            "Salvando…"
+          ) : status === "erro" ? (
+            <span className="text-red-700">Não foi possível salvar</span>
+          ) : null}
+        </span>
+      </div>
 
       {error && (
         <p role="alert" className="text-base text-red-700">
@@ -329,10 +276,7 @@ export function NotaAberta({
       )}
 
       <div className="flex flex-1 gap-8">
-        <div
-          ref={editorArea}
-          className={`min-w-0 flex-1 ${focus ? "mx-auto max-w-[720px]" : ""}`}
-        >
+        <div ref={editorArea} className="min-w-0 flex-1">
           <MarkdownEditor
             value={note.body}
             baseDir={dirName(path)}
@@ -346,31 +290,6 @@ export function NotaAberta({
             }}
           />
         </div>
-
-        {!focus && (
-          <aside className="flex w-[220px] shrink-0 flex-col gap-5 text-base">
-            {(
-              [
-                ["corrente", "Corrente", corrente, "Ex.: System Design"],
-                ["cardume", "Cardume", cardume, "Ex.: Cache"],
-                ["tags", "Tags", tags, "Separadas por vírgula"],
-              ] as const
-            ).map(([field, label, value, placeholder]) => (
-              <label key={field} className="flex flex-col gap-1">
-                <span className="text-xs font-semibold tracking-wide text-muted uppercase">
-                  {label}
-                </span>
-                <input
-                  value={value}
-                  placeholder={placeholder}
-                  onChange={(event) => onMeta(field, event.target.value)}
-                  onBlur={() => void save()}
-                  className="rounded-control border border-line bg-surface px-3 py-2 text-ink outline-none placeholder:text-muted focus:border-brand-light"
-                />
-              </label>
-            ))}
-          </aside>
-        )}
       </div>
 
       <footer className="flex justify-between gap-4 border-t border-line pt-3 text-sm text-muted">

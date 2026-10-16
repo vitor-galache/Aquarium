@@ -2,6 +2,7 @@ mod aquarium;
 mod asset;
 mod capture;
 mod depth;
+mod folder;
 mod index;
 mod note;
 
@@ -17,6 +18,10 @@ pub fn run() {
             aquarium::open_aquarium,
             aquarium::save_config,
             asset::save_image,
+            folder::list_folders,
+            folder::create_folder,
+            folder::get_order,
+            folder::set_order,
             index::index_status,
             index::list_notes,
             index::search_notes,

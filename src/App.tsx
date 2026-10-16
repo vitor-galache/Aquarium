@@ -12,6 +12,7 @@ import { SearchModal } from "./components/SearchModal";
 import { SettingsModal } from "./components/SettingsModal";
 import {
   applyTheme,
+  createFolder,
   createNote,
   duplicateNote,
   renameNote,
@@ -38,12 +39,10 @@ function App() {
   const [settings, setSettings] = useState(false);
   const [view, setView] = useState<View>({ kind: "aquario" });
   const [refreshKey, setRefreshKey] = useState(0);
-  const [focus, setFocus] = useState(false);
   const openNote = useRef<NotaAbertaHandle>(null);
   /** Pasta aberta no explorador (`""` na raiz). */
   const [folder, setFolder] = useState("");
   const index = useNotes(aquarium?.path ?? "", refreshKey);
-  const focused = focus && view.kind === "nota";
 
   useEffect(() => {
     startup()
@@ -123,7 +122,7 @@ function App() {
     }
   };
 
-  const tree = buildTree(index.notes ?? []);
+  const tree = buildTree(index.notes ?? [], index.folders, index.order);
   const current = findFolder(tree, folder) ?? tree;
   const openedNote =
     view.kind === "nota"
@@ -143,44 +142,64 @@ function App() {
     ...(view.kind === "nota" ? [{ label: openedNote?.title || "Nota" }] : []),
   ];
 
+  /** Na ordem manual, a nota renomeada continua onde estava. */
+  const keepPosition = (from: string, to: string) => {
+    const folder = index.notes?.find((n) => n.path === from)?.folder;
+    const saved = folder === undefined ? undefined : index.order[folder];
+    const name = (p: string) => p.split(/[\\/]/).pop() ?? p;
+    if (folder === undefined || !saved?.includes(name(from))) return;
+    index.reorder(
+      folder,
+      saved.map((k) => (k === name(from) ? name(to) : k)),
+    );
+  };
+
   const isOpen = (path: string) => view.kind === "nota" && view.path === path;
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      {!focused && (
-        <Sidebar
-          root={aquarium.path}
-          tree={tree}
-          currentFolder={crumbFolder}
-          activePath={view.kind === "nota" ? view.path : null}
-          onNewNote={() => void newNote()}
-          onOpenFolder={goTo}
-          onOpenNote={(path) => setView({ kind: "nota", path })}
-          onSettings={() => setSettings(true)}
-          onRename={(path, title) =>
-            fileAction(path, async () => {
-              const note = await renameNote(path, title);
-              if (isOpen(path)) setView({ kind: "nota", path: note.path });
-            })
-          }
-          onDuplicate={(path) =>
-            fileAction(path, async () => {
-              const note = await duplicateNote(path);
-              setView({ kind: "nota", path: note.path });
-            })
-          }
-          onTrash={(path) =>
-            fileAction(path, async () => {
-              await trashNote(path);
-              if (isOpen(path)) setView({ kind: "aquario" });
-            })
-          }
-        />
-      )}
+      <Sidebar
+        root={aquarium.path}
+        tree={tree}
+        currentFolder={crumbFolder}
+        activePath={view.kind === "nota" ? view.path : null}
+        onNewNote={() => void newNote()}
+        onNewFolder={(name) =>
+          createFolder(crumbFolder, name).then(
+            (path) => {
+              setRefreshKey((k) => k + 1);
+              goTo(path);
+            },
+            (error: unknown) =>
+              window.console.error("Não foi possível criar a pasta:", error),
+          )
+        }
+        onReorder={index.reorder}
+        onOpenFolder={goTo}
+        onOpenNote={(path) => setView({ kind: "nota", path })}
+        onSettings={() => setSettings(true)}
+        onRename={(path, title) =>
+          fileAction(path, async () => {
+            const note = await renameNote(path, title);
+            keepPosition(path, note.path);
+            if (isOpen(path)) setView({ kind: "nota", path: note.path });
+          })
+        }
+        onDuplicate={(path) =>
+          fileAction(path, async () => {
+            const note = await duplicateNote(path);
+            setView({ kind: "nota", path: note.path });
+          })
+        }
+        onTrash={(path) =>
+          fileAction(path, async () => {
+            await trashNote(path);
+            if (isOpen(path)) setView({ kind: "aquario" });
+          })
+        }
+      />
       <main className="flex min-w-0 flex-1 flex-col">
-        {!focused && (
-          <TopBar crumbs={crumbs} onSearch={() => setSearching(true)} />
-        )}
+        <TopBar crumbs={crumbs} onSearch={() => setSearching(true)} />
         <div
           className={`flex flex-1 flex-col overflow-y-auto ${view.kind === "aquario" ? "" : "gap-6 p-8"}`}
         >
@@ -189,8 +208,6 @@ function App() {
               key={view.path}
               ref={openNote}
               path={view.path}
-              focus={focused}
-              onFocusChange={setFocus}
               onBack={() => setView({ kind: "aquario" })}
               onOpenNote={(path) => {
                 setRefreshKey((k) => k + 1);

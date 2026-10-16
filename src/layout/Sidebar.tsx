@@ -1,4 +1,10 @@
-import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  type DragEvent,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import logoSymbol from "../assets/logo-symbol.svg";
 import {
   ChevronIcon,
@@ -7,10 +13,17 @@ import {
   FolderIcon,
   GearIcon,
   NewFileIcon,
+  NewFolderIcon,
   UpDownIcon,
 } from "../components/Icons";
 import type { NoteSummary } from "../lib/aquarium";
-import { ancestors, countNotes, DEPTHS, type Folder } from "../lib/tree";
+import {
+  ancestors,
+  countNotes,
+  DEPTHS,
+  type Folder,
+  type Item,
+} from "../lib/tree";
 
 type Props = {
   root: string;
@@ -19,6 +32,10 @@ type Props = {
   currentFolder: string;
   activePath: string | null;
   onNewNote: () => void;
+  /** Cria uma pasta dentro da pasta atual. */
+  onNewFolder: (name: string) => void;
+  /** Nova ordem manual dos itens de uma pasta. */
+  onReorder: (folder: string, items: string[]) => void;
   onOpenFolder: (folder: string) => void;
   onOpenNote: (path: string) => void;
   onSettings: () => void;
@@ -43,6 +60,8 @@ export function Sidebar({
   currentFolder,
   activePath,
   onNewNote,
+  onNewFolder,
+  onReorder,
   onOpenFolder,
   onOpenNote,
   onSettings,
@@ -61,6 +80,56 @@ export function Sidebar({
     path: string;
     title: string;
   } | null>(null);
+
+  const [newFolder, setNewFolder] = useState<string | null>(null);
+  // Item sendo arrastado e onde cairia (antes/depois de outro da mesma pasta).
+  const [drag, setDrag] = useState<{ parent: string; key: string } | null>(
+    null,
+  );
+  const [drop, setDrop] = useState<{ key: string; before: boolean } | null>(
+    null,
+  );
+
+  const dragProps = (parent: Folder, item: Item) => ({
+    draggable: renaming === null,
+    onDragStart: (e: DragEvent) => {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", item.key);
+      setDrag({ parent: parent.path, key: item.key });
+    },
+    onDragOver: (e: DragEvent) => {
+      // Só reordena entre irmãos da mesma pasta.
+      if (!drag || drag.parent !== parent.path || drag.key === item.key) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const rect = e.currentTarget.getBoundingClientRect();
+      const before = e.clientY < rect.top + rect.height / 2;
+      if (drop?.key !== item.key || drop.before !== before)
+        setDrop({ key: item.key, before });
+    },
+    onDrop: (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!drag || !drop) return;
+      const keys = parent.items.map((i) => i.key).filter((k) => k !== drag.key);
+      const at = keys.indexOf(drop.key) + (drop.before ? 0 : 1);
+      keys.splice(at, 0, drag.key);
+      onReorder(parent.path, keys);
+      setDrag(null);
+      setDrop(null);
+    },
+    onDragEnd: () => {
+      setDrag(null);
+      setDrop(null);
+    },
+  });
+
+  const dropLine = (key: string) =>
+    drop?.key === key
+      ? drop.before
+        ? "shadow-[inset_0_2px_0_var(--color-brand-light)]"
+        : "shadow-[inset_0_-2px_0_var(--color-brand-light)]"
+      : "";
 
   useEffect(() => {
     if (!menu) return;
@@ -81,7 +150,9 @@ export function Sidebar({
 
   const indent = (depth: number) => ({ paddingLeft: 6 + depth * 16 });
 
-  const noteRow = (note: NoteSummary, depth: number) => {
+  const noteRow = (parent: Folder, item: Item, depth: number) => {
+    if (item.kind !== "note") return null;
+    const { note } = item;
     if (renaming?.path === note.path) {
       const submit = () => {
         const title = renaming.title.trim();
@@ -113,6 +184,7 @@ export function Sidebar({
       <li key={note.path}>
         <button
           type="button"
+          {...dragProps(parent, item)}
           onClick={() => onOpenNote(note.path)}
           onContextMenu={(e: MouseEvent) => {
             e.preventDefault();
@@ -121,11 +193,11 @@ export function Sidebar({
           aria-current={active ? "page" : undefined}
           title={note.title}
           style={indent(depth)}
-          className={`${rowClass} ${
+          className={`${rowClass} ${dropLine(item.key)} ${
             active
               ? "bg-highlight text-ink"
               : "text-ink/85 hover:bg-highlight/60"
-          }`}
+          } ${drag?.key === item.key ? "opacity-50" : ""}`}
         >
           <span className="w-3 shrink-0" />
           <FileIcon className="shrink-0 text-muted" />
@@ -142,25 +214,28 @@ export function Sidebar({
     );
   };
 
-  const folderRows = (folder: Folder, depth: number): ReactNode[] => [
-    ...folder.folders.map((child) => {
+  const folderRows = (folder: Folder, depth: number): ReactNode[] =>
+    folder.items.map((item) => {
+      if (item.kind === "note") return noteRow(folder, item, depth);
+      const child = item.folder;
       const expanded = isExpanded(child.path);
       const active = child.path === currentFolder && !activePath;
       return (
         <li key={`dir:${child.path}`}>
           <button
             type="button"
+            {...dragProps(folder, item)}
             onClick={() => {
               setToggled((prev) => new Map(prev).set(child.path, !expanded));
               onOpenFolder(child.path);
             }}
             aria-expanded={expanded}
             style={indent(depth)}
-            className={`${rowClass} ${
+            className={`${rowClass} ${dropLine(item.key)} ${
               active
                 ? "bg-highlight text-ink"
                 : "text-ink/85 hover:bg-highlight/60"
-            }`}
+            } ${drag?.key === item.key ? "opacity-50" : ""}`}
           >
             <span className="flex w-3 shrink-0 justify-center text-muted">
               <ChevronIcon
@@ -180,9 +255,7 @@ export function Sidebar({
           )}
         </li>
       );
-    }),
-    ...folder.notes.map((note) => noteRow(note, depth)),
-  ];
+    });
 
   const empty = tree.folders.length === 0 && tree.notes.length === 0;
 
@@ -235,6 +308,15 @@ export function Sidebar({
         </button>
         <button
           type="button"
+          title="Nova pasta"
+          aria-label="Nova pasta"
+          onClick={() => setNewFolder("")}
+          className={iconButton}
+        >
+          <NewFolderIcon />
+        </button>
+        <button
+          type="button"
           title="Recolher tudo"
           aria-label="Recolher tudo"
           onClick={() => {
@@ -251,7 +333,32 @@ export function Sidebar({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pt-0.5 pb-3">
-        {empty ? (
+        {newFolder !== null && (
+          <label className="mb-px flex h-[30px] items-center gap-1.5 pl-[18px]">
+            <FolderIcon className="shrink-0 text-brand-light" />
+            <input
+              autoFocus
+              value={newFolder}
+              placeholder={
+                currentFolder
+                  ? `Nova pasta em ${currentFolder.split("/").pop()}`
+                  : "Nova pasta"
+              }
+              aria-label="Nome da nova pasta"
+              onChange={(e) => setNewFolder(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newFolder.trim()) {
+                  onNewFolder(newFolder.trim());
+                  setNewFolder(null);
+                }
+                if (e.key === "Escape") setNewFolder(null);
+              }}
+              onBlur={() => setNewFolder(null)}
+              className="h-[30px] min-w-0 flex-1 rounded-chip border border-brand-light bg-canvas px-2 text-base text-ink outline-none placeholder:text-muted"
+            />
+          </label>
+        )}
+        {empty && newFolder === null ? (
           <p className="px-2.5 py-1 text-base text-muted">
             Nenhuma nota ainda.
           </p>

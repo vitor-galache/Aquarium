@@ -83,7 +83,7 @@ export const renameNote = (path: string, title: string) =>
 export const duplicateNote = (path: string) =>
   invoke<Note>("duplicate_note", { path });
 
-/** Move a nota para a lixeira (`.lixeira/` dentro do aquário). */
+/** Move a nota para a lixeira do sistema operacional. */
 export const trashNote = (path: string) => invoke<void>("trash_note", { path });
 
 /** Grava uma imagem colada em `assets/` ao lado da nota; devolve o caminho relativo. */
@@ -164,3 +164,18 @@ export type SearchHit = {
 
 export const searchNotes = (query: string) =>
   invoke<SearchHit[]>("search_notes", { query });
+
+/** Subpastas do aquário (relativas, com `/`), inclusive vazias. */
+export const listFolders = () => invoke<string[]>("list_folders");
+
+/** Cria a pasta `name` dentro de `parent`; devolve o caminho relativo. */
+export const createFolder = (parent: string, name: string) =>
+  invoke<string>("create_folder", { parent, name });
+
+/** Ordem manual do explorador: pasta → itens (`nota.md`, `pasta/`). */
+export type Order = Record<string, string[]>;
+
+export const getOrder = () => invoke<Order>("get_order");
+
+export const setOrder = (folder: string, items: string[]) =>
+  invoke<void>("set_order", { folder, items });
