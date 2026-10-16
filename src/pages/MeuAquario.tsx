@@ -21,34 +21,29 @@ type Props = {
 type Layer = {
   depth: Depth;
   name: string;
-  hint: string;
-  background: string;
+  color: string;
 };
 
 const LAYERS: Layer[] = [
   {
     depth: "superficie",
     name: "Superfície",
-    hint: "Recém-capturadas",
-    background: "bg-layer-surface",
+    color: "var(--color-layer-surface)",
   },
   {
     depth: "meia-agua",
     name: "Meia-água",
-    hint: "Em desenvolvimento",
-    background: "bg-layer-midwater",
+    color: "var(--color-layer-midwater)",
   },
   {
     depth: "fundo",
     name: "Fundo",
-    hint: "Estáveis e revisitadas",
-    background: "bg-layer-deep",
+    color: "var(--color-layer-deep)",
   },
   {
     depth: "lodo",
     name: "Lodo",
-    hint: "Esquecidas há tempo",
-    background: "bg-layer-silt",
+    color: "var(--color-layer-silt)",
   },
 ];
 
@@ -120,6 +115,11 @@ export function MeuAquario({
   const visible = (notes ?? []).filter(
     (n) => activeCorrente === ALL || n.corrente === activeCorrente,
   );
+  const layers = LAYERS.map((layer) => ({
+    layer,
+    notes: visible.filter((n) => n.depth === layer.depth),
+  })).filter((l) => l.notes.length > 0);
+  const has = (depth: Depth) => visible.some((n) => n.depth === depth);
 
   return (
     <div className="flex flex-col gap-6">
@@ -148,6 +148,16 @@ export function MeuAquario({
                 </option>
               ))}
             </select>
+          )}
+          {has("superficie") && (
+            <Button variant="secondary" onClick={onTriage}>
+              Fazer triagem
+            </Button>
+          )}
+          {has("lodo") && (
+            <Button variant="secondary" onClick={onRefind}>
+              Reencontrar
+            </Button>
           )}
           <Button onClick={onCapture} title="Ctrl+Shift+Espaço">
             Capturar ideia
@@ -189,57 +199,28 @@ export function MeuAquario({
           <Button onClick={onCapture}>Capturar a primeira ideia</Button>
         </div>
       ) : (
-        <div className="flex flex-col overflow-hidden rounded-panel border border-line">
-          {LAYERS.map((layer) => {
-            const layerNotes = visible.filter((n) => n.depth === layer.depth);
-            return (
-              <section
-                key={layer.depth}
-                aria-label={layer.name}
-                className={`flex gap-6 border-b border-line p-6 last:border-b-0 ${layer.background}`}
-              >
-                <div className="flex w-layer-legend shrink-0 flex-col items-start gap-1">
-                  <h2 className="font-display text-layer font-semibold text-ink">
-                    {layer.name}
-                  </h2>
-                  <p className="text-sm text-muted">
-                    {countLabel(layerNotes.length)} · {layer.hint}
-                  </p>
-                  {layer.depth === "superficie" && layerNotes.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={onTriage}
-                      className="mt-2 cursor-pointer text-sm font-semibold text-brand hover:underline"
-                    >
-                      Fazer triagem →
-                    </button>
-                  )}
-                  {layer.depth === "lodo" && layerNotes.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={onRefind}
-                      className="mt-2 cursor-pointer text-sm font-semibold text-brand hover:underline"
-                    >
-                      Reencontrar →
-                    </button>
-                  )}
-                </div>
-                {layerNotes.length === 0 ? (
-                  <p className="self-center text-sm text-muted">
-                    Nenhuma nota nesta camada.
-                  </p>
-                ) : (
-                  <ul className="grid flex-1 grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
-                    {layerNotes.map((note) => (
-                      <li key={note.path}>
-                        <NoteCard note={note} onOpen={onOpenNote} />
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            );
-          })}
+        <div className="flex flex-col overflow-hidden rounded-panel">
+          {layers.map(({ layer, notes: layerNotes }, i) => (
+            // Sem faixas nem rótulos: a cor da água indica a camada e se funde
+            // com a da próxima, como uma coluna d'água contínua.
+            <section
+              key={layer.depth}
+              aria-label={layer.name}
+              style={{
+                background: `linear-gradient(to bottom, ${layer.color}, ${
+                  (layers[i + 1] ?? layers[i]).layer.color
+                })`,
+              }}
+            >
+              <ul className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3 p-6">
+                {layerNotes.map((note) => (
+                  <li key={note.path} title={layer.name}>
+                    <NoteCard note={note} onOpen={onOpenNote} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
         </div>
       )}
     </div>
