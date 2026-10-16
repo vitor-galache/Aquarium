@@ -1,0 +1,31 @@
+name: 🐛 Bug
+description: Algo não está funcionando como deveria
+labels: [bug]
+body:
+  - type: textarea
+    id: descricao
+    attributes:
+      label: O que aconteceu?
+      description: Descreva o bug e o comportamento esperado.
+    validations:
+      required: true
+  - type: textarea
+    id: passos
+    attributes:
+      label: Passos para reproduzir
+      placeholder: |
+        1. Abrir o app
+        2. Clicar em ...
+    validations:
+      required: true
+  - type: input
+    id: ambiente
+    attributes:
+      label: Sistema operacional e versão do app
+      placeholder: macOS 15, Aquarium 0.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: extras
+    attributes:
+      label: Logs / prints
