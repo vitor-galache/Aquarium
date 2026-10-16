@@ -23,10 +23,16 @@ jobs:
         include:
           - platform: macos-latest
             args: --target aarch64-apple-darwin
+            bundle: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+            stable: Notesea-macos-arm64.dmg
           - platform: macos-latest
             args: --target x86_64-apple-darwin
+            bundle: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
+            stable: Notesea-macos-intel.dmg
           - platform: ubuntu-22.04
             args: ""
+            bundle: src-tauri/target/release/bundle/appimage/*.AppImage
+            stable: Notesea-linux.AppImage
           - platform: windows-latest
             args: ""
     runs-on: ${{ matrix.platform }}
@@ -62,3 +68,13 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+      # Cópia com nome fixo para a landing linkar direto em
+      # releases/latest/download/<nome>, sem depender da versão.
+      - name: Upload with stable name
+        if: matrix.stable
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp ${{ matrix.bundle }} "${{ matrix.stable }}"
+          gh release upload "${{ github.ref_name }}" "${{ matrix.stable }}" --clobber

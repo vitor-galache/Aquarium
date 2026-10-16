@@ -7,6 +7,13 @@ import { Demo } from "./Demo";
 
 const REPO = "https://github.com/vitor-galache/notesea";
 const RELEASES = `${REPO}/releases/latest`;
+const DOWNLOAD = `${RELEASES}/download`;
+
+// Apple Silicon é o padrão no Mac; Intel fica como link secundário.
+const ARQUIVOS: Record<string, string> = {
+  macOS: `${DOWNLOAD}/Notesea-macos-arm64.dmg`,
+  Linux: `${DOWNLOAD}/Notesea-linux.AppImage`,
+};
 
 function sistema() {
   const ua = navigator.userAgent;
@@ -113,12 +120,23 @@ export function App() {
           asChild
           className="h-12 rounded-full px-7 text-md shadow-lg shadow-brand/30"
         >
-          <a href={RELEASES}>
+          <a href={(so && ARQUIVOS[so]) || RELEASES}>
             <Download /> {so ? `Baixar para ${so}` : "Baixar"}
           </a>
         </Button>
         <p className="mt-3 text-sm text-muted">
           macOS e Linux (Windows em breve) ·{" "}
+          {so === "macOS" && (
+            <>
+              <a
+                href={`${DOWNLOAD}/Notesea-macos-intel.dmg`}
+                className="text-brand hover:underline"
+              >
+                Mac com Intel
+              </a>{" "}
+              ·{" "}
+            </>
+          )}
           <a href={RELEASES} className="text-brand hover:underline">
             todas as versões
           </a>
