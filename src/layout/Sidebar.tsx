@@ -16,13 +16,7 @@ import {
   NewFolderIcon,
   UpDownIcon,
 } from "../components/Icons";
-import {
-  ancestors,
-  countNotes,
-  DEPTHS,
-  type Folder,
-  type Item,
-} from "../lib/tree";
+import { ancestors, countNotes, type Folder, type Item } from "../lib/tree";
 
 type Props = {
   root: string;
@@ -43,6 +37,8 @@ type Props = {
   onTrash: (path: string) => void;
   /** Move a nota para outra pasta (`""` é a raiz). */
   onMoveNote: (path: string, folder: string) => void;
+  /** Move a pasta para dentro de outra (`""` é a raiz). */
+  onMoveFolder: (folder: string, parent: string) => void;
   onTrashFolder: (folder: string) => void;
 };
 
@@ -73,6 +69,7 @@ export function Sidebar({
   onDuplicate,
   onTrash,
   onMoveNote,
+  onMoveFolder,
   onTrashFolder,
 }: Props) {
   // Pastas abertas/fechadas pelo usuário; as demais seguem a pasta atual.
@@ -94,6 +91,7 @@ export function Sidebar({
     parent: string;
     key: string;
     note?: string;
+    folder?: string;
   } | null>(null);
   const [drop, setDrop] = useState<{
     key: string;
@@ -110,6 +108,18 @@ export function Sidebar({
     });
   };
 
+  /** O item arrastado pode entrar nesta pasta? (nunca nela mesma ou abaixo) */
+  const canEnter = (target: string) =>
+    !!drag &&
+    target !== drag.parent &&
+    (drag.folder === undefined ||
+      (target !== drag.folder && !target.startsWith(`${drag.folder}/`)));
+
+  const moveInto = (target: string) => {
+    if (drag?.note) onMoveNote(drag.note, target);
+    else if (drag?.folder !== undefined) onMoveFolder(drag.folder, target);
+  };
+
   const endDrag = () => {
     setDrag(null);
     setDrop(null);
@@ -124,6 +134,7 @@ export function Sidebar({
         parent: parent.path,
         key: item.key,
         note: item.kind === "note" ? item.note.path : undefined,
+        folder: item.kind === "folder" ? item.folder.path : undefined,
       });
     },
     onDragOver: (e: DragEvent) => {
@@ -132,11 +143,10 @@ export function Sidebar({
       const rect = e.currentTarget.getBoundingClientRect();
       const y = (e.clientY - rect.top) / rect.height;
       const sibling = drag.parent === parent.path;
-      // Nota sobre o meio de uma pasta (ou vinda de outra pasta) entra nela.
+      // Item sobre o meio de uma pasta (ou vindo de outra pasta) entra nela.
       const into =
         item.kind === "folder" &&
-        drag.note !== undefined &&
-        item.folder.path !== drag.parent &&
+        canEnter(item.folder.path) &&
         (!sibling || (y > 0.25 && y < 0.75));
       const key = sibling || into ? item.key : null;
       if (key === null) return;
@@ -149,8 +159,8 @@ export function Sidebar({
       e.preventDefault();
       e.stopPropagation();
       if (!drag || !drop) return endDrag();
-      if (drop.mode === "into" && item.kind === "folder" && drag.note) {
-        onMoveNote(drag.note, item.folder.path);
+      if (drop.mode === "into" && item.kind === "folder") {
+        moveInto(item.folder.path);
       } else if (drop.mode !== "into") {
         const keys = parent.items
           .map((i) => i.key)
@@ -224,7 +234,6 @@ export function Sidebar({
       );
     }
     const active = note.path === activePath;
-    const depthInfo = DEPTHS[note.depth];
     return (
       <li key={note.path}>
         <button
@@ -256,10 +265,6 @@ export function Sidebar({
             {note.title || "Sem título"}
             <span className="text-muted/70">.md</span>
           </span>
-          <span
-            title={depthInfo.label}
-            className={`size-1.5 shrink-0 rounded-full ${depthInfo.dot}`}
-          />
         </button>
       </li>
     );
@@ -424,14 +429,14 @@ export function Sidebar({
               drop?.key === "" ? "ring-1 ring-brand-light ring-inset" : ""
             }`}
             onDragOver={(e) => {
-              // Soltar fora das pastas leva a nota para a raiz.
-              if (!drag?.note || drag.parent === "") return;
+              // Soltar fora das pastas leva o item para a raiz.
+              if (!drag || !canEnter("")) return;
               e.preventDefault();
               if (drop?.key !== "") setDrop({ key: "", mode: "into" });
             }}
             onDrop={(e) => {
               e.preventDefault();
-              if (drag?.note && drop?.key === "") onMoveNote(drag.note, "");
+              if (drop?.key === "") moveInto("");
               endDrag();
             }}
           >

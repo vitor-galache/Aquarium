@@ -23,6 +23,7 @@ pub fn run() {
             folder::get_order,
             folder::set_order,
             folder::move_note,
+            folder::move_folder,
             folder::trash_folder,
             index::index_status,
             index::list_notes,

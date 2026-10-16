@@ -187,3 +187,7 @@ export const moveNote = (path: string, folder: string) =>
 /** Manda a pasta inteira para a lixeira do sistema operacional. */
 export const trashFolder = (folder: string) =>
   invoke<void>("trash_folder", { folder });
+
+/** Move a pasta para dentro de `parent` (`""` é a raiz); devolve o novo caminho. */
+export const moveFolder = (folder: string, parent: string) =>
+  invoke<string>("move_folder", { folder, parent });

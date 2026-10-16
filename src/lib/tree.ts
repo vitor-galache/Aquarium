@@ -1,4 +1,4 @@
-import type { Depth, NoteSummary, Order } from "./aquarium";
+import type { NoteSummary, Order } from "./aquarium";
 
 /** Pasta do explorador, montada a partir do campo `folder` do índice. */
 export type Folder = {
@@ -103,14 +103,6 @@ export const countNotes = (folder: Folder): number =>
   folder.folders.reduce((sum, child) => sum + countNotes(child), 0);
 
 export const notesLabel = (n: number) => (n === 1 ? "1 nota" : `${n} notas`);
-
-/** Nome e cor (classe de fundo) de cada camada de profundidade. */
-export const DEPTHS: Record<Depth, { label: string; dot: string }> = {
-  superficie: { label: "Superfície", dot: "bg-foam" },
-  "meia-agua": { label: "Meia-água", dot: "bg-brand-light" },
-  fundo: { label: "Fundo", dot: "bg-brand" },
-  lodo: { label: "Lodo", dot: "bg-muted" },
-};
 
 /** Pasta do aquário no disco, para gravar notas nela. */
 export const folderDir = (root: string, folder: string) =>
