@@ -4,7 +4,7 @@
 //! sincronização compara caminho, data de modificação e tamanho para reindexar
 //! só o que mudou. Apagar `.aquarium/` faz o próximo `open` reconstruir tudo.
 
-use crate::note;
+use crate::{depth, note};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use rusqlite::{Connection, params};
 use serde::Serialize;
@@ -23,6 +23,9 @@ pub const STATUS_EVENT: &str = "index-status";
 /// Espera após o último evento da pasta antes de reindexar (salvamentos geram rajadas).
 const DEBOUNCE: Duration = Duration::from_millis(300);
 
+/// Versão do esquema; ao mudar, a tabela `notes` é reconstruída (os sinais ficam).
+const SCHEMA_VERSION: i64 = 1;
+
 const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS notes (
     path TEXT PRIMARY KEY,
@@ -32,6 +35,7 @@ CREATE TABLE IF NOT EXISTS notes (
     corrente TEXT,
     cardume TEXT,
     created TEXT NOT NULL,
+    chars INTEGER NOT NULL,
     mtime INTEGER NOT NULL,
     size INTEGER NOT NULL
 );
@@ -68,7 +72,19 @@ pub fn open_db(root: &Path) -> Result<Connection, String> {
     let path = root.join(crate::aquarium::INTERNAL_DIR).join(DB_FILE);
     let conn = Connection::open(&path)
         .map_err(|e| format!("Não foi possível abrir o índice {}: {e}", path.display()))?;
-    conn.execute_batch(SCHEMA).map_err(|e| e.to_string())?;
+    let err = |e: rusqlite::Error| e.to_string();
+    // O índice de notas pode ser escrito por outra conexão (thread de indexação).
+    conn.busy_timeout(Duration::from_secs(5)).map_err(err)?;
+    let version: i64 = conn
+        .query_row("PRAGMA user_version", [], |r| r.get(0))
+        .map_err(err)?;
+    if version < SCHEMA_VERSION {
+        conn.execute_batch(&format!(
+            "DROP TABLE IF EXISTS notes; PRAGMA user_version = {SCHEMA_VERSION};"
+        ))
+        .map_err(err)?;
+    }
+    conn.execute_batch(SCHEMA).map_err(err)?;
     Ok(conn)
 }
 
@@ -138,11 +154,11 @@ pub fn sync(conn: &mut Connection, root: &Path) -> Result<usize, String> {
         let Ok(content) = fs::read_to_string(path) else {
             continue;
         };
-        let n = note::summarize(path, &content);
+        let (n, chars) = note::summarize(path, &content);
         tx.execute(
-            "INSERT OR REPLACE INTO notes (path, id, title, depth, corrente, cardume, created, mtime, size)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-            params![n.path, n.id, n.title, n.depth, n.corrente, n.cardume, n.created, mtime, size],
+            "INSERT OR REPLACE INTO notes (path, id, title, depth, corrente, cardume, created, chars, mtime, size)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            params![n.path, n.id, n.title, n.depth, n.corrente, n.cardume, n.created, chars as i64, mtime, size],
         )
         .map_err(err)?;
     }
@@ -151,6 +167,46 @@ pub fn sync(conn: &mut Connection, root: &Path) -> Result<usize, String> {
         .map_err(err)?;
     tx.commit().map_err(err)?;
     Ok(count as usize)
+}
+
+/// Recalcula a camada de todas as notas indexadas (ex.: as que afundaram no
+/// lodo com o passar dos dias) e grava no arquivo só as que mudaram.
+pub fn refresh_depths(conn: &Connection, today: i64) -> Result<usize, String> {
+    let err = |e: rusqlite::Error| e.to_string();
+    let rows: Vec<(String, String, String, String, bool, i64)> = {
+        let mut stmt = conn
+            .prepare("SELECT path, id, created, depth, corrente IS NOT NULL, chars FROM notes WHERE id != ''")
+            .map_err(err)?;
+        stmt.query_map([], |r| {
+            Ok((
+                r.get(0)?,
+                r.get(1)?,
+                r.get(2)?,
+                r.get(3)?,
+                r.get(4)?,
+                r.get(5)?,
+            ))
+        })
+        .map_err(err)?
+        .collect::<Result<_, _>>()
+        .map_err(err)?
+    };
+    let mut changed = 0;
+    for (path, id, created, current, has_corrente, chars) in rows {
+        let facts = depth::NoteFacts {
+            id: &id,
+            created: &created,
+            depth: &current,
+            chars: chars as usize,
+            has_corrente,
+        };
+        let new = depth::depth_of(conn, &facts, today)?.as_str();
+        if new != current {
+            note::write_depth(Path::new(&path), new)?;
+            changed += 1;
+        }
+    }
+    Ok(changed)
 }
 
 fn set_status(app: &AppHandle, status: &Mutex<IndexStatus>, new: IndexStatus) {
@@ -202,6 +258,11 @@ pub fn start(app: &AppHandle, root: &Path) -> Result<(), String> {
     );
     thread::spawn(move || {
         let mut run = || match sync(&mut conn, &dir) {
+            // As gravações de `depth` disparam o observador, que reindexa em seguida.
+            Ok(_)
+                if refresh_depths(&conn, note::today())
+                    .inspect_err(|e| eprintln!("Falha ao recalcular profundidades: {e}"))
+                    .is_ok_and(|n| n > 0) => {}
             Ok(note_count) => set_status(
                 &app,
                 &status,
@@ -225,6 +286,14 @@ pub fn start(app: &AppHandle, root: &Path) -> Result<(), String> {
         _watcher: watcher,
     });
     Ok(())
+}
+
+impl IndexState {
+    /// Conexão nova com o índice do aquário aberto, para registrar sinais.
+    pub fn db(&self) -> Option<Connection> {
+        let root = self.session.lock().unwrap().as_ref()?.root.clone();
+        open_db(&root).ok()
+    }
 }
 
 /// Estado atual do índice (para quem chegou depois do último evento).
@@ -272,6 +341,31 @@ mod tests {
         fs::create_dir_all(&internal).unwrap();
         let mut conn = open_db(&root).unwrap();
         assert_eq!(sync(&mut conn, &root).unwrap(), 1);
+
+        drop(conn);
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn afunda_no_lodo_e_grava_so_quando_muda() {
+        let root = std::env::temp_dir().join(format!("aquarium-depth-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join(crate::aquarium::INTERNAL_DIR)).unwrap();
+        let velha = "---\nid: v\ncreated: 2020-01-01T00:00:00Z\ndepth: fundo\n---\n# V\n";
+        let nova = "---\nid: n\ncreated: 2020-01-01T00:00:00Z\ndepth: superficie\n---\n# N\n";
+        fs::write(root.join("v.md"), velha).unwrap();
+        fs::write(root.join("n.md"), nova).unwrap();
+
+        let mut conn = open_db(&root).unwrap();
+        sync(&mut conn, &root).unwrap();
+        let today = depth::day_number("2020-01-10").unwrap();
+        depth::record(&conn, "n", depth::Signal::Open, "2020-01-09T10:00:00Z").unwrap();
+        assert_eq!(refresh_depths(&conn, today).unwrap(), 0);
+
+        let later = depth::day_number("2021-01-01").unwrap();
+        assert_eq!(refresh_depths(&conn, later).unwrap(), 2);
+        let v = fs::read_to_string(root.join("v.md")).unwrap();
+        assert_eq!(v, velha.replace("depth: fundo", "depth: lodo"));
 
         drop(conn);
         fs::remove_dir_all(&root).unwrap();
