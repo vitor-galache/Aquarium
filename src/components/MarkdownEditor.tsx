@@ -58,9 +58,8 @@ const HEADINGS: Record<string, string> = {
 const hide = Decoration.replace({});
 const wikilink = Decoration.mark({ class: "cm-wikilink" });
 
-/** Resolve o endereço de uma imagem do Markdown para o webview. */
+/** Resolve o endereço de uma imagem local do Markdown para o webview. */
 function imageSrc(baseDir: string, url: string) {
-  if (/^[a-z][a-z0-9+.-]*:/i.test(url)) return url;
   const sep = baseDir.includes("\\") ? "\\" : "/";
   const relative = decodeURI(url).replace(/^\.\//, "").replace(/\//g, sep);
   return convertFileSrc(`${baseDir}${sep}${relative}`);
@@ -114,9 +113,12 @@ function livePreview(view: EditorView, baseDir: string): DecorationSet {
         if (node.name === "Image") {
           const url = node.node.getChild("URL");
           if (!url || active.has(state.doc.lineAt(node.from).number)) return;
+          const address = state.sliceDoc(url.from, url.to);
+          // Imagens remotas não carregam: abrir a nota não avisa servidor algum.
+          if (/^[a-z][a-z0-9+.-]*:/i.test(address)) return false;
           const text = state.sliceDoc(node.from, node.to);
           const alt = text.slice(2, text.indexOf("]"));
-          const src = imageSrc(baseDir, state.sliceDoc(url.from, url.to));
+          const src = imageSrc(baseDir, address);
           decorations.push(
             Decoration.replace({ widget: new ImageWidget(src, alt) }).range(
               node.from,
@@ -182,7 +184,6 @@ const IMAGE_TYPES: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/gif": "gif",
   "image/webp": "webp",
-  "image/svg+xml": "svg",
 };
 
 const imageExtension = (file: File) => IMAGE_TYPES[file.type];

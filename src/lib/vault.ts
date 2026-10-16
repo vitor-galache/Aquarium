@@ -161,6 +161,11 @@ export const captureIdea = (dir: string, text: string) => {
 export const onOpenCapture = (handler: () => void) =>
   listen("open-capture", () => handler());
 
+/** Pedido para sair (bandeja ou ⌘Q): grava o pendente e chama `quitApp`. */
+export const onQuitRequested = (handler: () => void) =>
+  listen("quit-requested", () => handler());
+
+export const quitApp = () => invoke("quit_app");
 /** A janela de captura criou uma nota. */
 export const onNotesChanged = (handler: () => void) =>
   listen("notes-changed", () => handler());

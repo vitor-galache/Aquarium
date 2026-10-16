@@ -7,7 +7,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Pasta das imagens, relativa à pasta da nota.
 pub const ASSETS_DIR: &str = "assets";
-const EXTENSIONS: [&str; 6] = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
+/// Sem SVG: aberto direto pelo protocolo `asset:` ele pode rodar scripts.
+const EXTENSIONS: [&str; 5] = ["png", "jpg", "jpeg", "gif", "webp"];
 
 /// Grava a imagem e devolve o caminho relativo à nota (ex.: `assets/x.png`).
 fn save(note: &Path, bytes: &[u8], extension: &str) -> Result<String, String> {
@@ -40,7 +41,13 @@ fn save(note: &Path, bytes: &[u8], extension: &str) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn save_image(note: String, bytes: Vec<u8>, extension: String) -> Result<String, String> {
+pub fn save_image(
+    state: tauri::State<crate::index::IndexState>,
+    note: String,
+    bytes: Vec<u8>,
+    extension: String,
+) -> Result<String, String> {
+    state.ensure_note(Path::new(&note))?;
     save(Path::new(&note), &bytes, &extension)
 }
 

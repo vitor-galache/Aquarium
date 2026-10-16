@@ -17,6 +17,8 @@ import {
   trashFolder,
   renameNote,
   trashNote,
+  onQuitRequested,
+  quitApp,
   onNotesChanged,
   openVault,
   startup,
@@ -72,10 +74,15 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const unlistenQuit = onQuitRequested(() => {
+      const flush = openNote.current?.flush() ?? Promise.resolve();
+      void flush.finally(() => void quitApp());
+    });
     // Notas criadas pela janela de captura aparecem na lista.
     const unlisten = onNotesChanged(() => setRefreshKey((k) => k + 1));
     return () => {
       unlisten.then((fn) => fn());
+      unlistenQuit.then((fn) => fn());
     };
   }, []);
 

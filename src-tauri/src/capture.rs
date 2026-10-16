@@ -4,6 +4,8 @@
 //! (padrão `Ctrl+Shift+Espaço`, configurável) e o clique no ícone continuem abrindo
 //! a captura: uma janela pequena, estilo Spotlight, separada da principal.
 
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{App, AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
@@ -27,6 +29,33 @@ pub fn show_main(app: &AppHandle) {
         let _ = window.show();
         let _ = window.set_focus();
     }
+}
+
+/// Evento que pede ao frontend para gravar o que estiver pendente antes de sair.
+const QUIT_REQUESTED: &str = "quit-requested";
+/// Tempo máximo esperando o frontend antes de sair mesmo assim.
+const QUIT_TIMEOUT: Duration = Duration::from_secs(3);
+
+/// Pede para sair: o frontend grava a nota aberta e chama `quit_app`.
+pub fn request_quit(app: &AppHandle) {
+    static REQUESTED: AtomicBool = AtomicBool::new(false);
+    if REQUESTED.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    if app.emit(QUIT_REQUESTED, ()).is_err() {
+        app.exit(0);
+        return;
+    }
+    let app = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(QUIT_TIMEOUT);
+        app.exit(0);
+    });
+}
+
+#[tauri::command]
+pub fn quit_app(app: AppHandle) {
+    app.exit(0);
 }
 
 /// Mostra a janela de captura no centro da tela, sem trazer a principal.
@@ -120,7 +149,7 @@ fn setup_tray(app: &App) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "open" => show_main(app),
-            "quit" => app.exit(0),
+            "quit" => request_quit(app),
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {

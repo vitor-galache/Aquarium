@@ -21,6 +21,7 @@ pub fn run() {
             vault::save_config,
             vault::recent_vaults,
             vault::forget_vault,
+            capture::quit_app,
             asset::save_image,
             folder::list_folders,
             folder::create_folder,
@@ -44,6 +45,15 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
         .run(|_app, _event| {
+            // ⌘Q e afins: grava a nota aberta antes de sair. Saídas com código
+            // (`app.exit`) já passaram por aqui e seguem direto.
+            if let tauri::RunEvent::ExitRequested {
+                code: None, api, ..
+            } = &_event
+            {
+                api.prevent_exit();
+                capture::request_quit(_app);
+            }
             // No macOS, clicar no ícone do Dock reabre a janela escondida.
             #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Reopen { .. } = _event {
