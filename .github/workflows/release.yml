@@ -59,20 +59,6 @@ jobs:
           tagName: v__VERSION__
           releaseName: Notesea v__VERSION__
           releaseBody: |
-            Baixe o instalador do seu sistema em **Assets**.
+            **macOS:** `brew install --cask vitor-galache/tap/notesea`
 
-            > O app ainda não é notarizado pela Apple. No macOS, se aparecer o aviso de desenvolvedor não identificado, vá em **Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim** (ou rode `xattr -cr /Applications/Notesea.app`).
-          generateReleaseNotes: true
-          releaseDraft: true
-          prerelease: false
-          args: ${{ matrix.args }}
-      # Cópia com nome fixo para a landing linkar direto em
-      # releases/latest/download/<nome>, sem depender da versão.
-      - name: Upload with stable name
-        if: matrix.stable
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          cp ${{ matrix.bundle }} "${{ matrix.stable }}"
-          gh release upload "${{ github.ref_name }}" "${{ matrix.stable }}" --clobber
+            **Linux:** baixe o `.AppImage`, `.deb` ou `.rpm` em **Assets**.
