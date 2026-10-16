@@ -17,9 +17,9 @@ import {
   trashFolder,
   renameNote,
   trashNote,
-  onOpenCapture,
   onQuitRequested,
   quitApp,
+  onNotesChanged,
   openVault,
   startup,
   type Vault,
@@ -40,11 +40,6 @@ const PrimeiroAcesso = lazy(() =>
 const SearchModal = lazy(() =>
   import("./components/SearchModal").then((m) => ({ default: m.SearchModal })),
 );
-const CaptureModal = lazy(() =>
-  import("./components/CaptureModal").then((m) => ({
-    default: m.CaptureModal,
-  })),
-);
 
 type View =
   | { kind: "inicio" }
@@ -54,7 +49,6 @@ type View =
 function App() {
   const [initial, setInitial] = useState<Startup | null>(null);
   const [vault, setVault] = useState<Vault | null>(null);
-  const [capturing, setCapturing] = useState(false);
   const [searching, setSearching] = useState(false);
   const [settings, setSettings] = useState(false);
   const [view, setView] = useState<View>({ kind: "inicio" });
@@ -80,11 +74,12 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const unlisten = onOpenCapture(() => setCapturing(true));
     const unlistenQuit = onQuitRequested(() => {
       const flush = openNote.current?.flush() ?? Promise.resolve();
       void flush.finally(() => void quitApp());
     });
+    // Notas criadas pela janela de captura aparecem na lista.
+    const unlisten = onNotesChanged(() => setRefreshKey((k) => k + 1));
     return () => {
       unlisten.then((fn) => fn());
       unlistenQuit.then((fn) => fn());
@@ -365,15 +360,6 @@ function App() {
           <SearchModal
             onOpenNote={(path) => setView({ kind: "nota", path })}
             onClose={() => setSearching(false)}
-          />
-        )}
-        {capturing && (
-          <CaptureModal
-            dir={vault.path}
-            onClose={() => {
-              setCapturing(false);
-              setRefreshKey((k) => k + 1);
-            }}
           />
         )}
       </Suspense>

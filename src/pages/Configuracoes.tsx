@@ -1,5 +1,6 @@
 import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
+import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
@@ -85,7 +86,23 @@ export function Configuracoes({ vault, onChange, onClose }: Props) {
   const [recording, setRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Abrir junto com o sistema; fica no sistema, não na pasta de notas. */
+  const [autostart, setAutostart] = useState<boolean | null>(null);
   const { config } = vault;
+
+  useEffect(() => {
+    isEnabled().then(setAutostart, () => setAutostart(false));
+  }, []);
+
+  async function toggleAutostart(on: boolean) {
+    try {
+      await (on ? enable() : disable());
+      setAutostart(on);
+      setError(null);
+    } catch (e) {
+      setError(`Não foi possível alterar o início com o sistema: ${String(e)}`);
+    }
+  }
 
   // Esc volta ao app, exceto enquanto grava um atalho.
   useEffect(() => {
@@ -173,6 +190,22 @@ export function Configuracoes({ vault, onChange, onClose }: Props) {
             Abrir pasta…
           </Button>
         </div>
+      ),
+    },
+    {
+      section: "geral",
+      label: "Iniciar com o sistema",
+      description:
+        "Abre o Notesea em segundo plano ao ligar o computador, com o ícone no menu do sistema pronta para capturar.",
+      control: (
+        <input
+          type="checkbox"
+          checked={autostart ?? false}
+          disabled={autostart === null}
+          onChange={(e) => void toggleAutostart(e.target.checked)}
+          aria-label="Iniciar com o sistema"
+          className="size-4 cursor-pointer accent-brand"
+        />
       ),
     },
     {

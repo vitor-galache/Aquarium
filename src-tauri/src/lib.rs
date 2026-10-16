@@ -14,6 +14,8 @@ pub fn run() {
         .manage(capture::CaptureShortcut::default())
         .setup(|app| Ok(capture::setup(app)?))
         .invoke_handler(tauri::generate_handler![
+            capture::hide_capture,
+            capture::captured,
             vault::startup,
             vault::open_vault,
             vault::save_config,
