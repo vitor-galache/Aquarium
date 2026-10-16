@@ -1,4 +1,10 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { searchNotes, type SearchHit } from "../lib/vault";
 
 type Props = {
@@ -34,10 +40,6 @@ export function SearchModal({ onOpenNote, onClose }: Props) {
   const list = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
-    field.current?.focus();
-  }, []);
-
-  useEffect(() => {
     let current = true;
     searchNotes(query)
       .then((result) => {
@@ -65,10 +67,8 @@ export function SearchModal({ onOpenNote, onClose }: Props) {
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      onClose();
-    } else if (event.key === "ArrowDown") {
+    // Esc fica com o Dialog.
+    if (event.key === "ArrowDown") {
       event.preventDefault();
       setSelected((i) => Math.min(i + 1, hits.length - 1));
     } else if (event.key === "ArrowUp") {
@@ -81,18 +81,17 @@ export function SearchModal({ onOpenNote, onClose }: Props) {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-abyss/40 pt-[14vh]"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Buscar notas"
-        className="flex max-h-[70vh] w-[640px] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-panel border border-line bg-surface shadow-xl"
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        showCloseButton={false}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          field.current?.focus();
+        }}
+        className="top-[14vh] w-[640px] max-w-[calc(100vw-32px)] translate-y-0 rounded-panel border-line bg-surface shadow-xl sm:max-w-[640px] flex max-h-[70vh] flex-col gap-0 overflow-hidden p-0"
       >
+        <DialogTitle className="sr-only">Buscar notas</DialogTitle>
+        <DialogDescription className="sr-only">Buscar notas</DialogDescription>
         <input
           ref={field}
           type="search"
@@ -152,7 +151,7 @@ export function SearchModal({ onOpenNote, onClose }: Props) {
         <div className="border-t border-line px-5 py-2 text-xs text-muted">
           ↑↓ navega · Enter abre · Esc fecha
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

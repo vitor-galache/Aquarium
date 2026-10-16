@@ -1,16 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Sidebar } from "./layout/Sidebar";
 import { TopBar } from "./layout/TopBar";
 import { ancestors, buildTree, findFolder, folderDir } from "./lib/tree";
 import { useNotes } from "./lib/useNotes";
 import { MinhasNotas } from "./pages/MinhasNotas";
-import { PrimeiroAcesso } from "./pages/PrimeiroAcesso";
-import { NotaAberta, type NotaAbertaHandle } from "./pages/NotaAberta";
-import { Button } from "./components/Button";
-import { CaptureModal } from "./components/CaptureModal";
-import { SearchModal } from "./components/SearchModal";
-import { Configuracoes } from "./pages/Configuracoes";
+import type { NotaAbertaHandle } from "./pages/NotaAberta";
+import { Button } from "@/components/ui/button";
 import {
   applyTheme,
   createFolder,
@@ -27,6 +23,26 @@ import {
   type Vault,
   type Startup,
 } from "./lib/vault";
+
+// Telas carregadas sob demanda: o editor (CodeMirror) é a maior parte do
+// bundle e não precisa estar pronto para a lista de notas aparecer.
+const NotaAberta = lazy(() =>
+  import("./pages/NotaAberta").then((m) => ({ default: m.NotaAberta })),
+);
+const Configuracoes = lazy(() =>
+  import("./pages/Configuracoes").then((m) => ({ default: m.Configuracoes })),
+);
+const PrimeiroAcesso = lazy(() =>
+  import("./pages/PrimeiroAcesso").then((m) => ({ default: m.PrimeiroAcesso })),
+);
+const SearchModal = lazy(() =>
+  import("./components/SearchModal").then((m) => ({ default: m.SearchModal })),
+);
+const CaptureModal = lazy(() =>
+  import("./components/CaptureModal").then((m) => ({
+    default: m.CaptureModal,
+  })),
+);
 
 type View =
   | { kind: "inicio" }
@@ -72,6 +88,14 @@ function App() {
     if (vault) applyTheme(vault.config.theme);
   }, [vault]);
 
+  // Com a lista na tela, adianta o editor para a primeira nota abrir sem espera.
+  useEffect(() => {
+    if (!vault) return;
+    // `setTimeout` e não `requestIdleCallback`, que o WebKit do macOS não tem.
+    const id = window.setTimeout(() => void import("./pages/NotaAberta"), 800);
+    return () => window.clearTimeout(id);
+  }, [vault]);
+
   // Ctrl/Cmd+K abre a busca rápida de qualquer tela.
   useEffect(() => {
     if (!vault) return;
@@ -89,11 +113,13 @@ function App() {
 
   if (!vault) {
     return (
-      <PrimeiroAcesso
-        initialPath={initial.suggestedPath}
-        initialError={initial.error}
-        onOpen={setVault}
-      />
+      <Suspense>
+        <PrimeiroAcesso
+          initialPath={initial.suggestedPath}
+          initialError={initial.error}
+          onOpen={setVault}
+        />
+      </Suspense>
     );
   }
 
@@ -185,18 +211,20 @@ function App() {
 
   if (settings) {
     return (
-      <Configuracoes
-        vault={vault}
-        onChange={(next) => {
-          if (next.path !== vault.path) {
-            setRefreshKey((k) => k + 1);
-            setFolder("");
-            setView({ kind: "inicio" });
-          }
-          setVault(next);
-        }}
-        onClose={() => setSettings(false)}
-      />
+      <Suspense>
+        <Configuracoes
+          vault={vault}
+          onChange={(next) => {
+            if (next.path !== vault.path) {
+              setRefreshKey((k) => k + 1);
+              setFolder("");
+              setView({ kind: "inicio" });
+            }
+            setVault(next);
+          }}
+          onClose={() => setSettings(false)}
+        />
+      </Suspense>
     );
   }
 
@@ -286,20 +314,22 @@ function App() {
           className={`flex flex-1 flex-col overflow-y-auto ${view.kind === "inicio" ? "" : "gap-6 p-8"}`}
         >
           {view.kind === "nota" ? (
-            <NotaAberta
-              key={view.path}
-              ref={openNote}
-              path={view.path}
-              onBack={() => setView({ kind: "inicio" })}
-              onOpenNote={(path) => {
-                setRefreshKey((k) => k + 1);
-                setView({ kind: "nota", path });
-              }}
-            />
+            <Suspense>
+              <NotaAberta
+                key={view.path}
+                ref={openNote}
+                path={view.path}
+                onBack={() => setView({ kind: "inicio" })}
+                onOpenNote={(path) => {
+                  setRefreshKey((k) => k + 1);
+                  setView({ kind: "nota", path });
+                }}
+              />
+            </Suspense>
           ) : view.kind === "em-breve" ? (
             <div className="flex flex-col items-start gap-4">
               <Button
-                variant="secondary"
+                variant="outline"
                 onClick={() => setView({ kind: "inicio" })}
               >
                 ← Notas
@@ -323,21 +353,23 @@ function App() {
           )}
         </div>
       </main>
-      {searching && (
-        <SearchModal
-          onOpenNote={(path) => setView({ kind: "nota", path })}
-          onClose={() => setSearching(false)}
-        />
-      )}
-      {capturing && (
-        <CaptureModal
-          dir={vault.path}
-          onClose={() => {
-            setCapturing(false);
-            setRefreshKey((k) => k + 1);
-          }}
-        />
-      )}
+      <Suspense>
+        {searching && (
+          <SearchModal
+            onOpenNote={(path) => setView({ kind: "nota", path })}
+            onClose={() => setSearching(false)}
+          />
+        )}
+        {capturing && (
+          <CaptureModal
+            dir={vault.path}
+            onClose={() => {
+              setCapturing(false);
+              setRefreshKey((k) => k + 1);
+            }}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

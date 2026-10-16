@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { TitleBar } from "../components/TitleBar";
-import { Button } from "../components/Button";
+import { Button } from "@/components/ui/button";
 import { openVault, type Vault } from "../lib/vault";
 import logoSymbol from "../assets/logo-symbol.svg";
 import folderIcon from "../assets/icons/folder.svg";
@@ -135,11 +135,11 @@ export function PrimeiroAcesso({ initialPath, initialError, onOpen }: Props) {
             Pode ser uma pasta vazia ou uma que já tenha notas Markdown.
           </p>
           <Button
-            variant="secondary"
+            variant="outline"
             className="self-start"
-            icon={<img src={folderIcon} alt="" width={18} height={18} />}
             onClick={chooseFolder}
           >
+            <img src={folderIcon} alt="" width={18} height={18} />
             Escolher outra pasta
           </Button>
         </div>
@@ -155,10 +155,10 @@ export function PrimeiroAcesso({ initialPath, initialError, onOpen }: Props) {
 
         <Button
           className="self-start"
-          icon={<img src={arrowIcon} alt="" width={18} height={18} />}
           disabled={!path || opening}
           onClick={confirm}
         >
+          <img src={arrowIcon} alt="" width={18} height={18} />
           Abrir pasta
         </Button>
 

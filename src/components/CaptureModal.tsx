@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { captureIdea } from "../lib/vault";
 
 type Props = {
@@ -13,10 +19,6 @@ export function CaptureModal({ dir, onClose }: Props) {
   const [saved, setSaved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const field = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    field.current?.focus();
-  }, []);
 
   const save = async () => {
     if (saving || !text.trim()) return;
@@ -35,10 +37,8 @@ export function CaptureModal({ dir, onClose }: Props) {
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      onClose();
-    } else if (
+    // Esc fica com o Dialog.
+    if (
       event.key === "Enter" &&
       !event.shiftKey &&
       !event.nativeEvent.isComposing
@@ -49,18 +49,17 @@ export function CaptureModal({ dir, onClose }: Props) {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-abyss/40 pt-[18vh]"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Nova nota"
-        className="flex w-[560px] max-w-[calc(100vw-32px)] flex-col gap-2 rounded-panel border border-line bg-surface p-5 shadow-xl"
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        showCloseButton={false}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          field.current?.focus();
+        }}
+        className="top-[18vh] w-[560px] max-w-[calc(100vw-32px)] translate-y-0 rounded-panel border-line bg-surface shadow-xl sm:max-w-[560px] flex flex-col gap-2 p-5"
       >
+        <DialogTitle className="sr-only">Nova nota</DialogTitle>
+        <DialogDescription className="sr-only">Nova nota</DialogDescription>
         <textarea
           ref={field}
           value={text}
@@ -84,7 +83,7 @@ export function CaptureModal({ dir, onClose }: Props) {
             Enter salva · Shift+Enter quebra linha · Esc fecha
           </span>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

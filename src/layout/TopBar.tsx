@@ -1,6 +1,7 @@
 import type { MouseEvent } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { SearchIcon } from "../components/Icons";
+import { Kbd } from "@/components/ui/kbd";
 
 type Crumb = { label: string; onClick?: () => void };
 
@@ -55,9 +56,7 @@ export function TopBar({ crumbs, onSearch }: Props) {
       >
         <SearchIcon />
         <span className="flex-1 text-left">Buscar em todas as notas</span>
-        <kbd className="rounded-[4px] border border-line px-1.5 font-mono text-2xs">
-          ⌘K
-        </kbd>
+        <Kbd>⌘K</Kbd>
       </button>
     </header>
   );

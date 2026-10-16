@@ -1,4 +1,5 @@
-import { Button } from "../components/Button";
+import { Button } from "@/components/ui/button";
+import { Kbd } from "@/components/ui/kbd";
 import { FileIcon, NewFileIcon, SearchIcon } from "../components/Icons";
 import { shortcutKeys, type NoteSummary } from "../lib/vault";
 import { notesLabel, type Folder } from "../lib/tree";
@@ -39,12 +40,7 @@ const recentNotes = (folder: Folder): NoteSummary[] => {
 const Keys = ({ keys }: { keys: string[] }) => (
   <span className="flex items-center gap-1">
     {keys.map((key) => (
-      <kbd
-        key={key}
-        className="rounded-[4px] border border-line px-1.5 font-mono text-2xs"
-      >
-        {key}
-      </kbd>
+      <Kbd key={key}>{key}</Kbd>
     ))}
   </span>
 );
@@ -80,7 +76,7 @@ export function MinhasNotas({
         <p className="text-md text-ink">
           Não foi possível carregar as notas: {error}
         </p>
-        <Button variant="secondary" onClick={onRetry}>
+        <Button variant="outline" onClick={onRetry}>
           Tentar de novo
         </Button>
       </div>
@@ -90,7 +86,8 @@ export function MinhasNotas({
   if (empty) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8">
-        <Button icon={<NewFileIcon />} onClick={onNewNote}>
+        <Button onClick={onNewNote}>
+          <NewFileIcon />
           Nova nota
         </Button>
         {capture}
@@ -111,11 +108,13 @@ export function MinhasNotas({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" icon={<SearchIcon />} onClick={onSearch}>
+          <Button variant="outline" onClick={onSearch}>
+            <SearchIcon />
             Buscar
             <Keys keys={["⌘K"]} />
           </Button>
-          <Button icon={<NewFileIcon />} onClick={onNewNote}>
+          <Button onClick={onNewNote}>
+            <NewFileIcon />
             Nova nota
           </Button>
         </div>
