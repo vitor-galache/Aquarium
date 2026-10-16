@@ -134,7 +134,6 @@ function App() {
     setView({ kind: "inicio" });
   };
   const crumbs = [
-    { label: "Minhas notas", onClick: () => goTo("") },
     ...ancestors(crumbFolder).map((path) => ({
       label: path.split("/").pop() ?? path,
       onClick: () => goTo(path),

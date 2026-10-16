@@ -41,7 +41,6 @@ export function MinhasNotas({
   const [captureError, setCaptureError] = useState<string | null>(null);
 
   const name = folder?.name || "Minhas notas";
-  const fsPath = folder?.path ? `${root}/${folder.path}` : root;
 
   const capture = async () => {
     const text = draft.trim();
@@ -72,13 +71,9 @@ export function MinhasNotas({
           <h1 className="truncate font-display text-[26px] font-medium tracking-tight">
             {name}
           </h1>
-          <p className="flex min-w-0 items-center gap-2.5 text-sm text-muted">
-            <span className="shrink-0">
-              {summary}
-              {indexing && " · indexando…"}
-            </span>
-            <span className="text-line">·</span>
-            <span className="truncate font-mono text-xs">{fsPath}</span>
+          <p className="text-sm text-muted">
+            {summary}
+            {indexing && " · indexando…"}
           </p>
         </div>
         <label className="flex h-[46px] items-center gap-3 rounded-card border border-line bg-canvas pr-2 pl-3.5 transition-colors focus-within:border-brand-light">
@@ -92,7 +87,7 @@ export function MinhasNotas({
                 void capture();
               }
             }}
-            placeholder={`Nova nota em ${name}`}
+            placeholder={folder?.path ? `Nova nota em ${name}` : "Nova nota"}
             aria-label="Nova nota"
             className="min-w-0 flex-1 bg-transparent text-md text-ink outline-none placeholder:text-muted"
           />
