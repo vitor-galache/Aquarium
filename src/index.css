@@ -1,1 +1,65 @@
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/sora";
 @import "tailwindcss";
+
+/* Tokens extraídos do Figma (Aquarium). */
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Sora Variable", ui-sans-serif, system-ui, sans-serif;
+
+  /* Marca */
+  --color-ink: #0e2a47;
+  --color-muted: #60798e;
+  --color-brand: #1d5f9e;
+  --color-brand-light: #4ba9e0;
+  --color-foam: #9ed8f7;
+  --color-highlight: #e6f6ff;
+  --color-success: #347b71;
+
+  /* Superfícies */
+  --color-canvas: #f7fbff;
+  --color-surface: #ffffff;
+  --color-line: #d9e7f0;
+
+  /* Camadas de profundidade */
+  --color-layer-surface: #edf7fc;
+  --color-layer-midwater: #e1f1fa;
+  --color-layer-deep: #d1e6f5;
+  --color-layer-silt: #e6edf2;
+
+  /* Tipografia */
+  --text-2xs: 10px;
+  --text-2xs--line-height: 1.5;
+  --text-xs: 11px;
+  --text-xs--line-height: 1.5;
+  --text-sm: 12px;
+  --text-sm--line-height: 1.5;
+  --text-base: 13px;
+  --text-base--line-height: 1.5;
+  --text-md: 14px;
+  --text-md--line-height: 1.5;
+  --text-layer: 17px;
+  --text-title: 18px;
+  --text-panel: 21px;
+  --text-logo: 24px;
+  --text-heading: 28px;
+  --text-heading--line-height: 1.5;
+
+  /* Raios */
+  --radius-chip: 6px;
+  --radius-control: 8px;
+  --radius-card: 10px;
+  --radius-panel: 16px;
+
+  /* Layout */
+  --spacing-sidebar: 212px;
+  --spacing-toolbar: 66px;
+  --spacing-search: 282px;
+  --spacing-layer-legend: 158px;
+}
+
+@layer base {
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+  }
+}
