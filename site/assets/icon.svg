@@ -1,0 +1,16 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1D5F9E"/><stop offset="1" stop-color="#0E2A47"/></linearGradient></defs>
+<rect x="64" y="64" width="896" height="896" rx="200" fill="url(#bg)"/>
+<g transform="translate(512 512) scale(5.2) translate(-50 -60)">
+<defs><clipPath id="pg"><path d="M22 8H66L86 28V104A8 8 0 0 1 78 112H22A8 8 0 0 1 14 104V16A8 8 0 0 1 22 8Z"/></clipPath></defs>
+<path d="M22 8H66L86 28V104A8 8 0 0 1 78 112H22A8 8 0 0 1 14 104V16A8 8 0 0 1 22 8Z" fill="#E6F6FF"/>
+<g clip-path="url(#pg)">
+<path d="M0 62Q25 55 50 62T100 62V120H0Z" fill="#9ED8F7" opacity="0.8"/>
+<path d="M0 80Q25 73 50 80T100 80V120H0Z" fill="#4BA9E0" opacity="0.8"/>
+<path d="M0 98Q25 91 50 98T100 98V120H0Z" fill="#1D5F9E" opacity="0.85"/>
+</g>
+<path d="M66 8V22A6 6 0 0 0 72 28H86" fill="#C8E8FA"/>
+<path d="M26 32H54M26 44H46" stroke="#4BA9E0" stroke-width="4" stroke-linecap="round" opacity="0.7"/>
+<path d="M22 8H66L86 28V104A8 8 0 0 1 78 112H22A8 8 0 0 1 14 104V16A8 8 0 0 1 22 8Z" fill="none" stroke="#9ED8F7" stroke-width="1.5"/>
+</g>
+</svg>
