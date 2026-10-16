@@ -71,7 +71,7 @@ export function Sidebar({
     : notes.slice(0, RECENT_LIMIT);
 
   return (
-    <nav className="flex h-full w-sidebar shrink-0 flex-col gap-6 overflow-hidden border-r border-line bg-surface px-[18px] pt-6 pb-[18px]">
+    <nav className="flex h-full w-sidebar shrink-0 flex-col gap-6 overflow-hidden border-r border-line bg-surface px-[18px] pt-10 pb-[18px]">
       <button
         type="button"
         onClick={onHome}

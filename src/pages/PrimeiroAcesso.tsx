@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
+import { TitleBar } from "../components/TitleBar";
 import { Button } from "../components/Button";
 import { openAquarium, type Aquarium } from "../lib/aquarium";
 import logoSymbol from "../assets/logo-symbol.svg";
@@ -71,6 +72,7 @@ export function PrimeiroAcesso({ initialPath, initialError, onOpen }: Props) {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
+      <TitleBar />
       <aside className="flex w-[480px] shrink-0 flex-col gap-6 bg-highlight px-[52px] pt-12 pb-10">
         <div className="flex items-center gap-[7px]">
           <img src={logoSymbol} alt="" width={27} height={40.5} />
