@@ -88,6 +88,14 @@ function App() {
             key={view.path}
             path={view.path}
             onBack={() => setView({ kind: "aquario" })}
+            onOpenNote={(path) => {
+              setRefreshKey((k) => k + 1);
+              setView({ kind: "nota", path });
+            }}
+            onDeleted={() => {
+              setRefreshKey((k) => k + 1);
+              setView({ kind: "aquario" });
+            }}
           />
         ) : view.kind === "em-breve" ? (
           <div className="flex flex-col items-start gap-4">

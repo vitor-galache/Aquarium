@@ -19,7 +19,10 @@ pub fn run() {
             note::create_note,
             note::save_note,
             note::peek_note,
-            note::bring_to_surface
+            note::bring_to_surface,
+            note::rename_note,
+            note::duplicate_note,
+            note::trash_note
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

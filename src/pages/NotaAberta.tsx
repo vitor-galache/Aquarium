@@ -3,7 +3,10 @@ import { Button } from "../components/Button";
 import { MarkdownEditor } from "../components/MarkdownEditor";
 import { replaceEditorText } from "../lib/editor";
 import {
+  duplicateNote,
   isConflict,
+  renameNote,
+  trashNote,
   peekNote,
   readNote,
   saveNote,
@@ -13,6 +16,9 @@ import {
 type Props = {
   path: string;
   onBack: () => void;
+  /** A nota passou a viver em outro arquivo (renomeada ou duplicada). */
+  onOpenNote: (path: string) => void;
+  onDeleted: () => void;
 };
 
 /** Espera depois da última tecla antes de gravar. */
@@ -26,13 +32,15 @@ const time = (date: Date) =>
   date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
 /** Nota aberta: editor Markdown com autosave e metadados na lateral. */
-export function NotaAberta({ path, onBack }: Props) {
+export function NotaAberta({ path, onBack, onOpenNote, onDeleted }: Props) {
   const [note, setNote] = useState<Note | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("salvo");
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [corrente, setCorrente] = useState("");
   const [cardume, setCardume] = useState("");
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const editorArea = useRef<HTMLDivElement>(null);
   // Estado mais recente para o autosave, sem recriar timers a cada tecla.
   const text = useRef("");
@@ -148,6 +156,30 @@ export function NotaAberta({ path, onBack }: Props) {
     }
   };
 
+  /** Grava o pendente e congela o autosave antes de mexer no arquivo. */
+  const act = async (action: () => Promise<void>) => {
+    await save();
+    if (conflict.current) return;
+    conflict.current = true;
+    try {
+      await action();
+    } catch (e) {
+      conflict.current = false;
+      setError(String(e));
+      setStatus("erro");
+    }
+  };
+
+  const rename = (title: string) =>
+    act(async () => {
+      setRenaming(null);
+      if (title.trim() === note?.title) {
+        conflict.current = false;
+        return;
+      }
+      onOpenNote((await renameNote(path, title)).path);
+    });
+
   const onMeta = (field: "corrente" | "cardume", value: string) => {
     meta.current = { ...meta.current, [field]: value };
     if (field === "corrente") setCorrente(value);
@@ -175,6 +207,80 @@ export function NotaAberta({ path, onBack }: Props) {
         <Button variant="secondary" onClick={onBack}>
           ← Notas
         </Button>
+        <div className="flex items-center gap-2">
+          {renaming !== null ? (
+            <form
+              className="flex items-center gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void rename(renaming);
+              }}
+            >
+              <input
+                autoFocus
+                value={renaming}
+                aria-label="Novo título"
+                onChange={(event) => setRenaming(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") setRenaming(null);
+                }}
+                className="rounded-control border border-line bg-surface px-3 py-2 text-md text-ink outline-none focus:border-brand-light"
+              />
+              <Button type="submit" disabled={!renaming.trim()}>
+                Renomear
+              </Button>
+              <Button variant="secondary" onClick={() => setRenaming(null)}>
+                Cancelar
+              </Button>
+            </form>
+          ) : confirmDelete ? (
+            <>
+              <span className="text-base text-ink">Mover para a lixeira?</span>
+              <Button
+                onClick={() =>
+                  void act(async () => {
+                    await trashNote(path);
+                    onDeleted();
+                  })
+                }
+              >
+                Excluir
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setConfirmDelete(false)}
+              >
+                Cancelar
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => setRenaming(note.title)}
+              >
+                Renomear
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  void act(async () => {
+                    conflict.current = false;
+                    onOpenNote((await duplicateNote(path)).path);
+                  })
+                }
+              >
+                Duplicar
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setConfirmDelete(true)}
+              >
+                Excluir
+              </Button>
+            </>
+          )}
+        </div>
         <span aria-live="polite" className="text-sm text-muted">
           {status === "salvo" && savedAt ? (
             <span className="text-success">✓ Salvo neste computador</span>
