@@ -36,12 +36,20 @@ export const readNote = (path: string) => invoke<Note>("read_note", { path });
 export const createNote = (dir: string, title: string, body: string) =>
   invoke<Note>("create_note", { dir, title, body });
 
+/** `expected` é o corpo que o editor conhecia; se o disco mudou, falha com conflito. */
 export const saveNote = (
   path: string,
   body: string,
+  expected: string | null,
   corrente: string | null,
   cardume: string | null,
-) => invoke<Note>("save_note", { path, body, corrente, cardume });
+) => invoke<Note>("save_note", { path, body, expected, corrente, cardume });
+
+export const isConflict = (error: unknown) =>
+  String(error).startsWith("conflito:");
+
+/** Lê a nota no disco sem contar como abertura. */
+export const peekNote = (path: string) => invoke<Note>("peek_note", { path });
 
 /** Tira a nota do lodo; a profundidade nunca é escolhida pelo usuário. */
 export const bringToSurface = (path: string) =>
