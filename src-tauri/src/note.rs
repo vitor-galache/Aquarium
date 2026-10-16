@@ -533,6 +533,114 @@ pub fn bring_to_surface(state: tauri::State<IndexState>, path: String) -> Result
     Ok(doc.to_note(path))
 }
 
+/// Pasta (oculta, fora do índice) para onde vão as notas excluídas.
+pub const TRASH_DIR: &str = ".lixeira";
+
+/// Troca o primeiro `# título` do corpo (ou insere um no começo).
+fn set_title(body: &str, title: &str) -> String {
+    let mut done = false;
+    let mut out = String::with_capacity(body.len() + title.len());
+    for line in body.split_inclusive('\n') {
+        if !done && line.starts_with("# ") {
+            let ending = &line[line.trim_end_matches(['\r', '\n']).len()..];
+            out.push_str(&format!("# {title}{ending}"));
+            done = true;
+        } else {
+            out.push_str(line);
+        }
+    }
+    if done {
+        out
+    } else if body.trim().is_empty() {
+        format!("# {title}\n")
+    } else {
+        format!("# {title}\n\n{body}")
+    }
+}
+
+/// Renomeia: atualiza o `# título` e o nome do arquivo (mesma pasta).
+fn rename(path: &Path, title: &str) -> Result<Note, String> {
+    let title = title.trim();
+    if title.is_empty() {
+        return Err("O título não pode ficar vazio.".into());
+    }
+    let (content, mut doc) = load(path)?;
+    doc.body = set_title(&doc.body, title);
+    let dir = path.parent().ok_or("Caminho de nota inválido.")?;
+    let slug = slugify(title);
+    let same = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .is_some_and(|s| s.eq_ignore_ascii_case(&slug));
+    let target = if same {
+        path.to_path_buf()
+    } else {
+        free_path(dir, &slug)?
+    };
+    store(path, &content, &doc)?;
+    if target != path {
+        fs::rename(path, &target).map_err(|e| format!("Não foi possível renomear: {e}"))?;
+    }
+    Ok(doc.to_note(&target))
+}
+
+/// Duplica a nota com novo id, data e profundidade, e título "(cópia)".
+fn duplicate(path: &Path) -> Result<Note, String> {
+    let (_, mut doc) = load(path)?;
+    let title = format!("{} (cópia)", doc.title(path));
+    for key in ["id", "created", "depth"] {
+        doc.set(key, None);
+    }
+    doc.body = set_title(&doc.body, &title);
+    doc.complete();
+    let dir = path.parent().ok_or("Caminho de nota inválido.")?;
+    let target = free_path(dir, &slugify(&title))?;
+    write_atomic(&target, &doc.serialize())?;
+    Ok(doc.to_note(&target))
+}
+
+/// Move a nota para a lixeira do aquário, sem apagar o arquivo.
+fn trash(root: &Path, path: &Path) -> Result<(), String> {
+    let dir = root.join(TRASH_DIR);
+    fs::create_dir_all(&dir).map_err(|e| format!("Não foi possível criar a lixeira: {e}"))?;
+    let stem = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or("Caminho de nota inválido.")?;
+    let target = free_path(&dir, stem)?;
+    fs::rename(path, target).map_err(|e| format!("Não foi possível mover para a lixeira: {e}"))
+}
+
+#[tauri::command]
+pub fn rename_note(
+    state: tauri::State<IndexState>,
+    path: String,
+    title: String,
+) -> Result<Note, String> {
+    let note = rename(Path::new(&path), &title)?;
+    state.resync();
+    Ok(note)
+}
+
+#[tauri::command]
+pub fn duplicate_note(state: tauri::State<IndexState>, path: String) -> Result<Note, String> {
+    let note = duplicate(Path::new(&path))?;
+    state.resync();
+    Ok(note)
+}
+
+#[tauri::command]
+pub fn trash_note(state: tauri::State<IndexState>, path: String) -> Result<(), String> {
+    let path = Path::new(&path);
+    let root = state
+        .root()
+        .or_else(|| path.parent().map(Path::to_path_buf))
+        .ok_or("Nenhum aquário aberto.")?;
+    trash(&root, path)?;
+    state.resync();
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -648,6 +756,44 @@ mod tests {
                 .to_string_lossy()
                 .ends_with(".tmp"))
         );
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn renomeia_duplica_e_exclui() {
+        assert_eq!(set_title("a\n# Velho\r\nx", "Novo"), "a\n# Novo\r\nx");
+        assert_eq!(set_title("texto\n", "T"), "# T\n\ntexto\n");
+        assert_eq!(set_title("", "T"), "# T\n");
+
+        let dir = std::env::temp_dir().join(format!("aquarium-ciclo-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let a = create_note(
+            dir.display().to_string(),
+            "Cache".into(),
+            "---\ntags: [x]\n---\n# Cache\n\ncorpo\n".into(),
+        )
+        .unwrap();
+
+        let r = rename(Path::new(&a.path), "Filas e Cache").unwrap();
+        assert!(r.path.ends_with("filas-e-cache.md"));
+        assert!(!Path::new(&a.path).exists());
+        assert_eq!(r.title, "Filas e Cache");
+        assert_eq!(r.id, a.id);
+        assert!(rename(Path::new(&r.path), "  ").is_err());
+        // Mesmo slug: só o título muda, o arquivo fica.
+        let r2 = rename(Path::new(&r.path), "Filas e cache").unwrap();
+        assert_eq!(r2.path, r.path);
+
+        let d = duplicate(Path::new(&r.path)).unwrap();
+        assert!(d.path.ends_with("filas-e-cache-copia.md"));
+        assert_eq!(d.title, "Filas e cache (cópia)");
+        assert_ne!(d.id, a.id);
+        assert!(fs::read_to_string(&d.path).unwrap().contains("tags: [x]"));
+
+        trash(&dir, Path::new(&d.path)).unwrap();
+        assert!(!Path::new(&d.path).exists());
+        assert!(dir.join(TRASH_DIR).join("filas-e-cache-copia.md").exists());
         fs::remove_dir_all(&dir).unwrap();
     }
 

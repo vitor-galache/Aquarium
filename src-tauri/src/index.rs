@@ -295,6 +295,20 @@ impl IndexState {
         let root = self.session.lock().unwrap().as_ref()?.root.clone();
         open_db(&root).ok()
     }
+
+    /// Pasta do aquário aberto.
+    pub fn root(&self) -> Option<PathBuf> {
+        Some(self.session.lock().unwrap().as_ref()?.root.clone())
+    }
+
+    /// Reindexa já, para a lista refletir na hora uma mudança feita pelo app.
+    pub fn resync(&self) {
+        let Some(root) = self.root() else { return };
+        let result = open_db(&root).and_then(|mut conn| sync(&mut conn, &root));
+        if let Err(e) = result {
+            eprintln!("Falha ao indexar {}: {e}", root.display());
+        }
+    }
 }
 
 /// Estado atual do índice (para quem chegou depois do último evento).

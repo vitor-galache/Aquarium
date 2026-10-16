@@ -45,6 +45,16 @@ export const saveNote = (
   cardume: string | null,
 ) => invoke<Note>("save_note", { path, body, expected, corrente, cardume });
 
+/** Troca o `# título` e o nome do arquivo; devolve a nota no novo caminho. */
+export const renameNote = (path: string, title: string) =>
+  invoke<Note>("rename_note", { path, title });
+
+export const duplicateNote = (path: string) =>
+  invoke<Note>("duplicate_note", { path });
+
+/** Move a nota para a lixeira (`.lixeira/` dentro do aquário). */
+export const trashNote = (path: string) => invoke<void>("trash_note", { path });
+
 export const isConflict = (error: unknown) =>
   String(error).startsWith("conflito:");
 
