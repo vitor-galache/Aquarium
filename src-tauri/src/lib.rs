@@ -17,6 +17,8 @@ pub fn run() {
             vault::startup,
             vault::open_vault,
             vault::save_config,
+            vault::recent_vaults,
+            vault::forget_vault,
             asset::save_image,
             folder::list_folders,
             folder::create_folder,

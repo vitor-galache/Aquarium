@@ -15,6 +15,7 @@ import {
   NewFileIcon,
   NewFolderIcon,
 } from "../components/Icons";
+import { forgetVault, recentVaults } from "../lib/vault";
 import { ancestors, countNotes, type Folder, type Item } from "../lib/tree";
 
 type Props = {
@@ -29,6 +30,8 @@ type Props = {
   /** Nova ordem manual dos itens de uma pasta. */
   onReorder: (folder: string, items: string[]) => void;
   onOpenFolder: (folder: string) => void;
+  /** Abre outra pasta de notas; `null` pergunta qual. */
+  onSwitchVault: (path: string | null) => Promise<void>;
   onOpenNote: (path: string) => void;
   onSettings: () => void;
   onRename: (path: string, title: string) => void;
@@ -62,6 +65,7 @@ export function Sidebar({
   onNewFolder,
   onReorder,
   onOpenFolder,
+  onSwitchVault,
   onOpenNote,
   onSettings,
   onRename,
@@ -83,6 +87,8 @@ export function Sidebar({
     title: string;
   } | null>(null);
 
+  /** Pastas recentes, enquanto o menu da pasta está aberto. */
+  const [recent, setRecent] = useState<string[] | null>(null);
   const [newFolder, setNewFolder] = useState<string | null>(null);
   // Item arrastado (`note` quando é nota) e onde cairia: antes/depois de um
   // irmão (reordenar) ou dentro de uma pasta (mover). `key` "" é a raiz.
@@ -184,6 +190,28 @@ export function Sidebar({
         : drop.mode === "before"
           ? "shadow-[inset_0_2px_0_var(--color-brand-light)]"
           : "shadow-[inset_0_-2px_0_var(--color-brand-light)]";
+
+  useEffect(() => {
+    if (!recent) return;
+    const close = () => setRecent(null);
+    window.addEventListener("mousedown", close);
+    window.addEventListener("blur", close);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", close);
+      window.removeEventListener("blur", close);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [recent]);
+
+  const toggleRecent = () => {
+    if (recent) return setRecent(null);
+    recentVaults().then(setRecent, (error: unknown) => {
+      window.console.error("Não foi possível ler as pastas recentes:", error);
+      setRecent([]);
+    });
+  };
 
   useEffect(() => {
     if (!menu) return;
@@ -335,16 +363,83 @@ export function Sidebar({
         </span>
       </button>
 
-      <div className="flex items-center gap-1 py-1.5 pr-2.5 pl-2.5">
+      <div className="relative flex items-center gap-1 py-1.5 pr-2.5 pl-2.5">
         <button
           type="button"
-          onClick={onSettings}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={toggleRecent}
           title={`${folderName(root)}\n${root}`}
-          aria-label={`Pasta aberta: ${folderName(root)}. Trocar de pasta`}
+          aria-label={`Pasta aberta: ${folderName(root)}. Pastas recentes`}
+          aria-haspopup="menu"
+          aria-expanded={recent !== null}
           className={`${iconButton} text-brand-light`}
         >
           <FolderIcon />
         </button>
+        {recent && (
+          <div
+            role="menu"
+            onMouseDown={(e) => e.stopPropagation()}
+            className="absolute top-full left-2.5 z-50 flex w-[300px] flex-col gap-0.5 rounded-card border border-line bg-surface p-1 shadow-xl"
+          >
+            <p className="px-3 pt-1.5 pb-1 text-2xs font-semibold tracking-widest text-muted uppercase">
+              Pastas recentes
+            </p>
+            {recent.map((path) => {
+              const current = path === root;
+              return (
+                <div key={path} className="group flex items-center">
+                  <button
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={current}
+                    title={path}
+                    onClick={() => {
+                      setRecent(null);
+                      void onSwitchVault(path);
+                    }}
+                    className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-control px-3 py-1.5 text-left text-md text-ink hover:bg-highlight"
+                  >
+                    <span className="w-3 shrink-0 text-brand-light">
+                      {current ? "✓" : ""}
+                    </span>
+                    <span className="truncate">{folderName(path)}</span>
+                  </button>
+                  {!current && (
+                    <button
+                      type="button"
+                      title="Remover da lista"
+                      aria-label={`Remover ${folderName(path)} da lista`}
+                      onClick={() =>
+                        forgetVault(path).then(setRecent, (error: unknown) =>
+                          window.console.error(
+                            "Não foi possível remover a pasta da lista:",
+                            error,
+                          ),
+                        )
+                      }
+                      className={`${iconButton} opacity-0 group-hover:opacity-100 focus-visible:opacity-100`}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+            <div className="my-0.5 border-t border-line" />
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setRecent(null);
+                void onSwitchVault(null);
+              }}
+              className="w-full cursor-pointer rounded-control px-3 py-1.5 text-left text-md text-ink hover:bg-highlight"
+            >
+              Abrir pasta…
+            </button>
+          </div>
+        )}
         <h2 className="flex-1 text-2xs font-semibold tracking-widest text-muted uppercase">
           Arquivos
         </h2>

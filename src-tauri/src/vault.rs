@@ -14,6 +14,8 @@ const LEGACY_IDENTIFIER: &str = "com.vitorgalache.aquarium";
 const CONFIG_FILE: &str = "config.json";
 /// Estado do app (fora da pasta do usuário) com a última pasta aberta.
 const STATE_FILE: &str = "state.json";
+/// Quantas pastas recentes o app lembra.
+const MAX_RECENT: usize = 10;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -36,6 +38,35 @@ pub struct Startup {
 #[serde(rename_all = "camelCase")]
 struct AppState {
     last_path: Option<PathBuf>,
+    /// Pastas abertas, da mais recente para a mais antiga.
+    #[serde(default)]
+    recent: Vec<PathBuf>,
+}
+
+impl AppState {
+    /// Marca a pasta como a última usada, no topo das recentes.
+    fn touch(&mut self, path: &Path) {
+        self.recent.retain(|p| p != path);
+        self.recent.insert(0, path.to_path_buf());
+        self.recent.truncate(MAX_RECENT);
+        self.last_path = Some(path.to_path_buf());
+    }
+
+    /// Recentes, incluindo a última pasta de versões que ainda não tinham a lista.
+    fn recent(&self) -> Vec<PathBuf> {
+        match &self.last_path {
+            Some(last) if !self.recent.contains(last) => {
+                let mut list = vec![last.clone()];
+                list.extend(self.recent.iter().cloned());
+                list
+            }
+            _ => self.recent.clone(),
+        }
+    }
+}
+
+fn display(paths: Vec<PathBuf>) -> Vec<String> {
+    paths.iter().map(|p| p.display().to_string()).collect()
 }
 
 /// Tema da interface; `sistema` segue o modo claro/escuro do sistema.
@@ -255,13 +286,31 @@ pub fn open_vault(app: AppHandle, path: String) -> Result<Vault, String> {
     let vault = prepare(&path)?;
     crate::index::start(&app, &path)?;
     apply_config(&app, &vault.config);
-    save_state(
-        &app,
-        &AppState {
-            last_path: Some(path),
-        },
-    )?;
+    let mut state = load_state(&app);
+    state.recent = state.recent();
+    state.touch(&path);
+    save_state(&app, &state)?;
     Ok(vault)
+}
+
+/// Pastas abertas recentemente, da mais nova para a mais antiga.
+#[tauri::command]
+pub fn recent_vaults(app: AppHandle) -> Vec<String> {
+    display(load_state(&app).recent())
+}
+
+/// Tira a pasta da lista de recentes (os arquivos não são tocados).
+#[tauri::command]
+pub fn forget_vault(app: AppHandle, path: String) -> Result<Vec<String>, String> {
+    let path = PathBuf::from(path);
+    let mut state = load_state(&app);
+    state.recent = state.recent();
+    state.recent.retain(|p| *p != path);
+    if state.last_path.as_ref() == Some(&path) {
+        state.last_path = None;
+    }
+    save_state(&app, &state)?;
+    Ok(display(state.recent))
 }
 
 /// Salva as configurações da pasta aberta; o atalho é validado antes de gravar.
@@ -280,6 +329,21 @@ pub fn save_config(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn recentes_sem_repeticao_e_com_limite() {
+        let mut state: AppState = serde_json::from_str(r#"{ "lastPath": "/a" }"#).unwrap();
+        assert_eq!(state.recent(), vec![PathBuf::from("/a")]);
+        state.recent = state.recent();
+        state.touch(Path::new("/b"));
+        state.touch(Path::new("/a"));
+        assert_eq!(state.recent, vec![PathBuf::from("/a"), PathBuf::from("/b")]);
+        for i in 0..20 {
+            state.touch(Path::new(&format!("/p{i}")));
+        }
+        assert_eq!(state.recent.len(), MAX_RECENT);
+        assert_eq!(state.last_path, Some(PathBuf::from("/p19")));
+    }
 
     #[test]
     fn prepara_pasta_nova_e_existente() {
