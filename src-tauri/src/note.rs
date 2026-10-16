@@ -606,9 +606,6 @@ pub fn bring_to_surface(state: tauri::State<IndexState>, path: String) -> Result
     Ok(doc.to_note(path))
 }
 
-/// Pasta (oculta, fora do índice) para onde vão as notas excluídas.
-pub const TRASH_DIR: &str = ".lixeira";
-
 /// Troca o primeiro `# título` do corpo (ou insere um no começo).
 fn set_title(body: &str, title: &str) -> String {
     let mut done = false;
@@ -672,16 +669,9 @@ fn duplicate(path: &Path) -> Result<Note, String> {
     Ok(doc.to_note(&target))
 }
 
-/// Move a nota para a lixeira do aquário, sem apagar o arquivo.
-fn trash(root: &Path, path: &Path) -> Result<(), String> {
-    let dir = root.join(TRASH_DIR);
-    fs::create_dir_all(&dir).map_err(|e| format!("Não foi possível criar a lixeira: {e}"))?;
-    let stem = path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .ok_or("Caminho de nota inválido.")?;
-    let target = free_path(&dir, stem)?;
-    fs::rename(path, target).map_err(|e| format!("Não foi possível mover para a lixeira: {e}"))
+/// Move a nota para a lixeira do sistema operacional (recuperável por lá).
+fn trash(path: &Path) -> Result<(), String> {
+    trash::delete(path).map_err(|e| format!("Não foi possível mover para a lixeira: {e}"))
 }
 
 #[tauri::command]
@@ -704,12 +694,7 @@ pub fn duplicate_note(state: tauri::State<IndexState>, path: String) -> Result<N
 
 #[tauri::command]
 pub fn trash_note(state: tauri::State<IndexState>, path: String) -> Result<(), String> {
-    let path = Path::new(&path);
-    let root = state
-        .root()
-        .or_else(|| path.parent().map(Path::to_path_buf))
-        .ok_or("Nenhum aquário aberto.")?;
-    trash(&root, path)?;
+    trash(Path::new(&path))?;
     state.resync();
     Ok(())
 }
@@ -889,9 +874,7 @@ mod tests {
         assert_ne!(d.id, a.id);
         assert!(fs::read_to_string(&d.path).unwrap().contains("tags: [x]"));
 
-        trash(&dir, Path::new(&d.path)).unwrap();
-        assert!(!Path::new(&d.path).exists());
-        assert!(dir.join(TRASH_DIR).join("filas-e-cache-copia.md").exists());
+        // `trash` vai para a lixeira do sistema; não roda em teste.
         fs::remove_dir_all(&dir).unwrap();
     }
 

@@ -121,3 +121,17 @@ export const SearchIcon = ({ className }: Props) => (
     <path d="m10.5 10.5 3.5 3.5" />
   </svg>
 );
+
+export const NewFolderIcon = ({ className }: Props) => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 16 16"
+    {...base}
+    strokeWidth={1.4}
+    className={className}
+  >
+    <path d={FOLDER_PATH} />
+    <path d="M8 7.5v4M6 9.5h4" />
+  </svg>
+);

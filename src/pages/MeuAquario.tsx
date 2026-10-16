@@ -148,58 +148,59 @@ export function MeuAquario({
             <span className="text-right">Modificado</span>
           </div>
           <ul className="flex flex-col gap-0.5 px-5 pb-6">
-            {folder.folders.map((child) => (
-              <li key={child.path}>
-                <button
-                  type="button"
-                  onClick={() => onOpenFolder(child.path)}
-                  className={`${grid} w-full cursor-pointer items-center rounded-control px-3 py-[11px] text-left transition-colors hover:bg-highlight/60 focus-visible:outline-2 focus-visible:outline-brand-light`}
-                >
-                  <span className="flex min-w-0 items-center gap-3">
-                    <FolderIcon open className="shrink-0 text-brand-light" />
-                    <span className="truncate text-md font-medium text-ink">
-                      {child.name}
-                    </span>
-                  </span>
-                  <span className="text-sm text-muted">
-                    {notesLabel(countNotes(child))}
-                  </span>
-                  <span />
-                </button>
-              </li>
-            ))}
-            {folder.notes.map((note) => (
-              <li key={note.path}>
-                <button
-                  type="button"
-                  onClick={() => onOpenNote(note.path)}
-                  className={`${grid} w-full cursor-pointer items-center rounded-control px-3 py-[11px] text-left transition-colors hover:bg-highlight/60 focus-visible:outline-2 focus-visible:outline-brand-light`}
-                >
-                  <span className="flex min-w-0 items-center gap-3">
-                    <FileIcon className="shrink-0 text-muted" />
-                    <span className="flex min-w-0 flex-col gap-[3px]">
+            {folder.items.map((item) =>
+              item.kind === "folder" ? (
+                <li key={item.key}>
+                  <button
+                    type="button"
+                    onClick={() => onOpenFolder(item.folder.path)}
+                    className={`${grid} w-full cursor-pointer items-center rounded-control px-3 py-[11px] text-left transition-colors hover:bg-highlight/60 focus-visible:outline-2 focus-visible:outline-brand-light`}
+                  >
+                    <span className="flex min-w-0 items-center gap-3">
+                      <FolderIcon open className="shrink-0 text-brand-light" />
                       <span className="truncate text-md font-medium text-ink">
-                        {note.title || "Sem título"}
+                        {item.folder.name}
                       </span>
-                      {note.excerpt && (
-                        <span className="truncate text-sm text-muted">
-                          {note.excerpt}
-                        </span>
-                      )}
                     </span>
-                  </span>
-                  <span className="flex items-center gap-2 text-sm text-ink/80">
-                    <span
-                      className={`size-[7px] rounded-full ${DEPTHS[note.depth].dot}`}
-                    />
-                    {DEPTHS[note.depth].label}
-                  </span>
-                  <span className="text-right font-mono text-xs text-muted">
-                    {formatDate(note.modified)}
-                  </span>
-                </button>
-              </li>
-            ))}
+                    <span className="text-sm text-muted">
+                      {notesLabel(countNotes(item.folder))}
+                    </span>
+                    <span />
+                  </button>
+                </li>
+              ) : (
+                <li key={item.key}>
+                  <button
+                    type="button"
+                    onClick={() => onOpenNote(item.note.path)}
+                    className={`${grid} w-full cursor-pointer items-center rounded-control px-3 py-[11px] text-left transition-colors hover:bg-highlight/60 focus-visible:outline-2 focus-visible:outline-brand-light`}
+                  >
+                    <span className="flex min-w-0 items-center gap-3">
+                      <FileIcon className="shrink-0 text-muted" />
+                      <span className="flex min-w-0 flex-col gap-[3px]">
+                        <span className="truncate text-md font-medium text-ink">
+                          {item.note.title || "Sem título"}
+                        </span>
+                        {item.note.excerpt && (
+                          <span className="truncate text-sm text-muted">
+                            {item.note.excerpt}
+                          </span>
+                        )}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-2 text-sm text-ink/80">
+                      <span
+                        className={`size-[7px] rounded-full ${DEPTHS[item.note.depth].dot}`}
+                      />
+                      {DEPTHS[item.note.depth].label}
+                    </span>
+                    <span className="text-right font-mono text-xs text-muted">
+                      {formatDate(item.note.modified)}
+                    </span>
+                  </button>
+                </li>
+              ),
+            )}
           </ul>
         </>
       )}

@@ -6,7 +6,7 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Pasta das imagens, relativa à pasta da nota.
-const ASSETS_DIR: &str = "assets";
+pub const ASSETS_DIR: &str = "assets";
 const EXTENSIONS: [&str; 6] = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
 
 /// Grava a imagem e devolve o caminho relativo à nota (ex.: `assets/x.png`).
