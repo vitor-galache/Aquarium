@@ -1,6 +1,6 @@
 import type { MouseEvent } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { SearchIcon } from "../components/Icons";
+import { SearchIcon } from "lucide-react";
 import { Kbd } from "@/components/ui/kbd";
 
 type Crumb = { label: string; onClick?: () => void };
@@ -54,7 +54,7 @@ export function TopBar({ crumbs, onSearch }: Props) {
         onClick={onSearch}
         className="flex h-[30px] w-[280px] shrink-0 cursor-pointer items-center gap-2 rounded-[7px] border border-line bg-canvas px-2.5 text-sm text-muted transition-colors hover:border-brand-light"
       >
-        <SearchIcon />
+        <SearchIcon className="size-3.5" />
         <span className="flex-1 text-left">Buscar em todas as notas</span>
         <Kbd>⌘K</Kbd>
       </button>

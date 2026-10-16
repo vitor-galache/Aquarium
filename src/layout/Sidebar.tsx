@@ -8,15 +8,17 @@ import {
 } from "react";
 import logoSymbol from "../assets/logo-symbol.svg";
 import {
-  ChevronIcon,
-  CollapseIcon,
-  FileIcon,
+  CheckIcon,
+  ChevronRightIcon,
+  ChevronsDownUpIcon,
+  FilePlusIcon,
+  FileTextIcon,
   FolderIcon,
-  GearIcon,
-  NewFileIcon,
-  NewFolderIcon,
-} from "../components/Icons";
-import { CheckIcon, XIcon } from "lucide-react";
+  FolderOpenIcon,
+  FolderPlusIcon,
+  SettingsIcon,
+  XIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   ContextMenu,
@@ -297,7 +299,7 @@ export function Sidebar({
           } ${drag?.key === item.key ? "opacity-50" : ""}`}
         >
           <span className="w-3 shrink-0" />
-          <FileIcon className="shrink-0 text-muted" />
+          <FileTextIcon className="size-[15px] shrink-0 text-muted" />
           <span className="min-w-0 flex-1 truncate">
             {note.title || "Sem título"}
             <span className="text-muted/70">.md</span>
@@ -336,11 +338,15 @@ export function Sidebar({
             } ${drag?.key === item.key ? "opacity-50" : ""}`}
           >
             <span className="flex w-3 shrink-0 justify-center text-muted">
-              <ChevronIcon
-                className={`transition-transform ${expanded ? "rotate-90" : ""}`}
+              <ChevronRightIcon
+                className={`size-3 transition-transform ${expanded ? "rotate-90" : ""}`}
               />
             </span>
-            <FolderIcon open={expanded} className="shrink-0 text-brand-light" />
+            {expanded ? (
+              <FolderOpenIcon className="size-[15px] shrink-0 text-brand-light" />
+            ) : (
+              <FolderIcon className="size-[15px] shrink-0 text-brand-light" />
+            )}
             <span className="min-w-0 flex-1 truncate">{child.name}</span>
             <span className="font-mono text-2xs text-muted/70">
               {countNotes(child)}
@@ -440,10 +446,10 @@ export function Sidebar({
           Arquivos
         </h2>
         <IconButton label="Nova nota" onClick={onNewNote}>
-          <NewFileIcon />
+          <FilePlusIcon />
         </IconButton>
         <IconButton label="Nova pasta" onClick={() => setNewFolder("")}>
-          <NewFolderIcon />
+          <FolderPlusIcon />
         </IconButton>
         <IconButton
           label="Recolher tudo"
@@ -455,7 +461,7 @@ export function Sidebar({
             setToggled(closed);
           }}
         >
-          <CollapseIcon />
+          <ChevronsDownUpIcon />
         </IconButton>
       </div>
 
@@ -471,7 +477,7 @@ export function Sidebar({
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pt-0.5 pb-3">
             {newFolder !== null && (
               <label className="mb-px flex h-[30px] items-center gap-1.5 pl-[18px]">
-                <FolderIcon className="shrink-0 text-brand-light" />
+                <FolderIcon className="size-[15px] shrink-0 text-brand-light" />
                 <input
                   autoFocus
                   value={newFolder}
@@ -535,7 +541,7 @@ export function Sidebar({
           onClick={onSettings}
           className="flex h-8 w-full cursor-pointer items-center gap-2.5 rounded-chip px-2.5 text-base text-muted transition-colors hover:bg-highlight/60 hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-light"
         >
-          <GearIcon />
+          <SettingsIcon className="size-[15px]" />
           Configurações
         </button>
       </div>
