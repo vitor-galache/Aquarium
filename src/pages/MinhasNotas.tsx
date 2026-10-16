@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { FilePlusIcon, FileTextIcon, SearchIcon } from "lucide-react";
-import { shortcutKeys, type NoteSummary } from "../lib/vault";
+import { SEARCH_KEY, shortcutKeys, type NoteSummary } from "../lib/vault";
 import { notesLabel, type Folder } from "../lib/tree";
 
 type Props = {
@@ -99,7 +99,7 @@ export function MinhasNotas({
     <div className="flex flex-col gap-6 px-8 pt-7 pb-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-1.5">
-          <h1 className="truncate font-display text-[26px] font-medium tracking-tight">
+          <h1 className="truncate font-display text-heading font-medium tracking-tight">
             {name}
           </h1>
           <p className="text-sm text-muted">
@@ -111,7 +111,7 @@ export function MinhasNotas({
           <Button variant="outline" onClick={onSearch}>
             <SearchIcon />
             Buscar
-            <Keys keys={["⌘K"]} />
+            <Keys keys={[SEARCH_KEY]} />
           </Button>
           <Button onClick={onNewNote}>
             <FilePlusIcon />

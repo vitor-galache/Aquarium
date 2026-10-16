@@ -6,6 +6,7 @@ import {
   useState,
   type Ref,
 } from "react";
+import { ArrowLeftIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MarkdownEditor } from "../components/MarkdownEditor";
 import { replaceEditorText } from "../lib/editor";
@@ -237,7 +238,8 @@ export function NotaAberta({ ref, path, onBack, onOpenNote }: Props) {
     return (
       <div className="flex flex-col items-start gap-4">
         <Button variant="outline" onClick={onBack}>
-          ← Notas
+          <ArrowLeftIcon />
+          Notas
         </Button>
         <p role="alert" className="text-md text-ink">
           Não foi possível abrir a nota: {error}
@@ -250,20 +252,20 @@ export function NotaAberta({ ref, path, onBack, onOpenNote }: Props) {
 
   return (
     <div className="flex min-h-full flex-col gap-4">
-      <div className="flex items-center justify-end gap-4">
+      <div className="flex min-h-5 items-center justify-end gap-4">
         <span aria-live="polite" className="text-sm text-muted">
           {status === "salvo" && savedAt ? (
             <span className="text-success">✓ Salvo neste computador</span>
           ) : status === "salvando" || status === "pendente" ? (
             "Salvando…"
           ) : status === "erro" ? (
-            <span className="text-red-700">Não foi possível salvar</span>
+            <span className="text-danger">Não foi possível salvar</span>
           ) : null}
         </span>
       </div>
 
       {error && (
-        <p role="alert" className="text-base text-red-700">
+        <p role="alert" className="text-base text-danger">
           {error}
         </p>
       )}
@@ -298,13 +300,13 @@ export function NotaAberta({ ref, path, onBack, onOpenNote }: Props) {
         </div>
       </div>
 
-      <footer className="flex justify-between gap-4 border-t border-line pt-3 text-sm text-muted">
+      <footer className="grid grid-cols-3 gap-4 border-t border-line pt-3 text-sm text-muted">
         <span className="truncate">{fileName(note.path)}</span>
-        <span>
+        <span className="text-center">
           {words} {words === 1 ? "palavra" : "palavras"}
         </span>
-        <span>
-          {savedAt ? `Último save às ${time(savedAt)}` : "Sem alterações"}
+        <span className="text-right">
+          {savedAt ? `Salvo às ${time(savedAt)}` : "Sem alterações"}
         </span>
       </footer>
     </div>

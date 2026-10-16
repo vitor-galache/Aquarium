@@ -107,7 +107,7 @@ export function SearchModal({ onOpenNote, onClose }: Props) {
           className="w-full border-b border-line bg-transparent px-5 py-4 text-title text-ink outline-none placeholder:text-muted"
         />
         {error ? (
-          <p className="px-5 py-4 text-sm text-red-700">{error}</p>
+          <p className="px-5 py-4 text-sm text-danger">{error}</p>
         ) : query.trim() && hits.length === 0 ? (
           <p className="px-5 py-4 text-md text-muted">
             Nenhuma nota encontrada.
