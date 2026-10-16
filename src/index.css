@@ -60,46 +60,48 @@
   --spacing-layer-legend: 158px;
 }
 
-/* Tema escuro: as mesmas águas, vistas do fundo. Repetido para o tema do sistema. */
+/* Tema escuro, repetido para o tema do sistema. */
 @layer base {
   :root[data-theme="escuro"] {
     color-scheme: dark;
-    --color-ink: #e6f6ff;
-    --color-muted: #8fa9bf;
-    --color-brand: #4ba9e0;
+    /* Grafites levemente frios, como água funda à noite; o azul fica só no acento. */
+    --color-ink: #dce3e9;
+    --color-muted: #8b96a0;
+    --color-brand: #5b9fd3;
     --color-brand-light: #9ed8f7;
-    --color-foam: #2c6a9c;
-    --color-highlight: #133a5e;
-    --color-success: #5fb3a6;
-    --color-canvas: #0a1f35;
-    --color-surface: #0e2a47;
-    --color-line: #1f4468;
-    --color-abyss: #04121f;
-    --color-layer-surface: #123757;
-    --color-layer-midwater: #0f304e;
-    --color-layer-deep: #0c2843;
-    --color-layer-silt: #1a2a38;
+    --color-foam: #3d6f94;
+    --color-highlight: #22303c;
+    --color-success: #7bb5a8;
+    --color-canvas: #171a1d;
+    --color-surface: #1e2226;
+    --color-line: #2d3339;
+    --color-abyss: #000000;
+    --color-layer-surface: #212a31;
+    --color-layer-midwater: #1f272e;
+    --color-layer-deep: #1c232a;
+    --color-layer-silt: #22252a;
   }
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     color-scheme: dark;
-    --color-ink: #e6f6ff;
-    --color-muted: #8fa9bf;
-    --color-brand: #4ba9e0;
+    /* Grafites levemente frios, como água funda à noite; o azul fica só no acento. */
+    --color-ink: #dce3e9;
+    --color-muted: #8b96a0;
+    --color-brand: #5b9fd3;
     --color-brand-light: #9ed8f7;
-    --color-foam: #2c6a9c;
-    --color-highlight: #133a5e;
-    --color-success: #5fb3a6;
-    --color-canvas: #0a1f35;
-    --color-surface: #0e2a47;
-    --color-line: #1f4468;
-    --color-abyss: #04121f;
-    --color-layer-surface: #123757;
-    --color-layer-midwater: #0f304e;
-    --color-layer-deep: #0c2843;
-    --color-layer-silt: #1a2a38;
+    --color-foam: #3d6f94;
+    --color-highlight: #22303c;
+    --color-success: #7bb5a8;
+    --color-canvas: #171a1d;
+    --color-surface: #1e2226;
+    --color-line: #2d3339;
+    --color-abyss: #000000;
+    --color-layer-surface: #212a31;
+    --color-layer-midwater: #1f272e;
+    --color-layer-deep: #1c232a;
+    --color-layer-silt: #22252a;
   }
 }
 

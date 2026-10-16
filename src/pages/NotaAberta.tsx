@@ -1,17 +1,21 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type Ref,
+} from "react";
 import { Button } from "../components/Button";
 import { MarkdownEditor } from "../components/MarkdownEditor";
 import { replaceEditorText } from "../lib/editor";
 import { countWords } from "../lib/markdown";
 import {
   createNote,
-  duplicateNote,
   listNotes,
   saveImage,
   isConflict,
   parseTags,
-  renameNote,
-  trashNote,
   peekNote,
   readNote,
   saveNote,
@@ -19,12 +23,18 @@ import {
   type NoteSummary,
 } from "../lib/aquarium";
 
+/** Ações de arquivo vindas do explorador sobre a nota aberta. */
+export type NotaAbertaHandle = {
+  /** Grava o pendente e congela o autosave antes de mexer no arquivo. */
+  run: (action: () => Promise<void>) => Promise<void>;
+};
+
 type Props = {
+  ref?: Ref<NotaAbertaHandle>;
   path: string;
   onBack: () => void;
-  /** A nota passou a viver em outro arquivo (renomeada ou duplicada). */
+  /** Abre outra nota (ex.: um `[[link]]`). */
   onOpenNote: (path: string) => void;
-  onDeleted: () => void;
   focus: boolean;
   onFocusChange: (focus: boolean) => void;
 };
@@ -45,10 +55,10 @@ const time = (date: Date) =>
 
 /** Nota aberta: editor Markdown com autosave e metadados na lateral. */
 export function NotaAberta({
+  ref,
   path,
   onBack,
   onOpenNote,
-  onDeleted,
   focus,
   onFocusChange,
 }: Props) {
@@ -59,8 +69,6 @@ export function NotaAberta({
   const [corrente, setCorrente] = useState("");
   const [cardume, setCardume] = useState("");
   const [tags, setTags] = useState("");
-  const [renaming, setRenaming] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [words, setWords] = useState(0);
   const notes = useRef<NoteSummary[]>([]);
   const editorArea = useRef<HTMLDivElement>(null);
@@ -206,29 +214,20 @@ export function NotaAberta({
     }
   };
 
-  /** Grava o pendente e congela o autosave antes de mexer no arquivo. */
-  const act = async (action: () => Promise<void>) => {
-    await save();
-    if (conflict.current) return;
-    conflict.current = true;
-    try {
-      await action();
-    } catch (e) {
-      conflict.current = false;
-      setError(String(e));
-      setStatus("erro");
-    }
-  };
-
-  const rename = (title: string) =>
-    act(async () => {
-      setRenaming(null);
-      if (title.trim() === note?.title) {
+  useImperativeHandle(ref, () => ({
+    run: async (action) => {
+      await save();
+      if (conflict.current) return;
+      conflict.current = true;
+      try {
+        await action();
+      } catch (e) {
         conflict.current = false;
-        return;
+        setError(String(e));
+        setStatus("erro");
       }
-      onOpenNote((await renameNote(path, title)).path);
-    });
+    },
+  }));
 
   /** Abre a nota do `[[link]]`; se não existir, cria ao lado desta. */
   const openLink = async (target: string) => {
@@ -289,93 +288,7 @@ export function NotaAberta({
           </Button>
         </div>
       ) : (
-        <div className="flex items-center justify-between gap-4">
-          <Button variant="secondary" onClick={onBack}>
-            ← Notas
-          </Button>
-          <div className="flex items-center gap-2">
-            {renaming !== null ? (
-              <form
-                className="flex items-center gap-2"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void rename(renaming);
-                }}
-              >
-                <input
-                  autoFocus
-                  value={renaming}
-                  aria-label="Novo título"
-                  onChange={(event) => setRenaming(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Escape") setRenaming(null);
-                  }}
-                  className="rounded-control border border-line bg-surface px-3 py-2 text-md text-ink outline-none focus:border-brand-light"
-                />
-                <Button type="submit" disabled={!renaming.trim()}>
-                  Renomear
-                </Button>
-                <Button variant="secondary" onClick={() => setRenaming(null)}>
-                  Cancelar
-                </Button>
-              </form>
-            ) : confirmDelete ? (
-              <>
-                <span className="text-base text-ink">
-                  Mover para a lixeira?
-                </span>
-                <Button
-                  onClick={() =>
-                    void act(async () => {
-                      await trashNote(path);
-                      onDeleted();
-                    })
-                  }
-                >
-                  Excluir
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => setConfirmDelete(false)}
-                >
-                  Cancelar
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  variant="secondary"
-                  onClick={() => setRenaming(note.title)}
-                >
-                  Renomear
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() =>
-                    void act(async () => {
-                      conflict.current = false;
-                      onOpenNote((await duplicateNote(path)).path);
-                    })
-                  }
-                >
-                  Duplicar
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => setConfirmDelete(true)}
-                >
-                  Excluir
-                </Button>
-                <Button
-                  variant="secondary"
-                  title="⌘⇧F / Ctrl+Shift+F"
-                  onClick={() => onFocusChange(true)}
-                >
-                  Modo foco
-                </Button>
-              </>
-            )}
-          </div>
+        <div className="flex items-center justify-end gap-4">
           <span aria-live="polite" className="text-sm text-muted">
             {status === "salvo" && savedAt ? (
               <span className="text-success">✓ Salvo neste computador</span>
@@ -385,6 +298,14 @@ export function NotaAberta({
               <span className="text-red-700">Não foi possível salvar</span>
             ) : null}
           </span>
+          <button
+            type="button"
+            title="⌘⇧F / Ctrl+Shift+F"
+            onClick={() => onFocusChange(true)}
+            className="cursor-pointer rounded-control px-2 py-1 text-sm text-muted transition-colors hover:bg-highlight hover:text-brand focus-visible:outline-2 focus-visible:outline-brand-light"
+          >
+            Modo foco
+          </button>
         </div>
       )}
 
