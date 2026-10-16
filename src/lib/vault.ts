@@ -191,3 +191,15 @@ export const trashFolder = (folder: string) =>
 /** Move a pasta para dentro de `parent` (`""` é a raiz); devolve o novo caminho. */
 export const moveFolder = (folder: string, parent: string) =>
   invoke<string>("move_folder", { folder, parent });
+
+/** Teclas do atalho: `Ctrl+Shift+Space` → `["Ctrl", "Shift", "Espaço"]`. */
+export const shortcutKeys = (shortcut: string) =>
+  shortcut
+    .split("+")
+    .map((part) =>
+      part === "Space"
+        ? "Espaço"
+        : part === "Super"
+          ? "⌘"
+          : part.replace(/^(Key|Digit)/, ""),
+    );

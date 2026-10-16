@@ -282,14 +282,14 @@ function App() {
             </div>
           ) : (
             <MinhasNotas
-              root={vault.path}
               folder={index.notes ? current : null}
               indexing={index.indexing}
               error={index.error}
+              captureShortcut={vault.config.captureShortcut}
               onRetry={index.reload}
-              onOpenFolder={goTo}
+              onNewNote={() => void newNote()}
+              onSearch={() => setSearching(true)}
               onOpenNote={(path) => setView({ kind: "nota", path })}
-              onCaptured={() => setRefreshKey((k) => k + 1)}
             />
           )}
         </div>
