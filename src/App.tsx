@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
 import { Sidebar } from "./layout/Sidebar";
 import { TopBar } from "./layout/TopBar";
 import { ancestors, buildTree, findFolder, folderDir } from "./lib/tree";
@@ -21,6 +22,7 @@ import {
   renameNote,
   trashNote,
   onOpenCapture,
+  openVault,
   startup,
   type Vault,
   type Startup,
@@ -122,6 +124,32 @@ function App() {
     }
   };
 
+  /** Alterna para outra pasta de notas; `null` pergunta qual. */
+  const switchVault = async (path: string | null) => {
+    const selected =
+      path ??
+      (await open({
+        directory: true,
+        defaultPath: vault.path,
+        title: "Abrir pasta",
+      }));
+    if (typeof selected !== "string" || selected === vault.path) return;
+    const run = async () => {
+      const next = await openVault(selected);
+      applyTheme(next.config.theme);
+      setRefreshKey((k) => k + 1);
+      setFolder("");
+      setView({ kind: "inicio" });
+      setVault(next);
+    };
+    const failed = (error: unknown) =>
+      window.console.error("Não foi possível abrir a pasta:", error);
+    // A nota aberta grava o pendente antes de sair da pasta.
+    if (view.kind === "nota" && openNote.current)
+      await openNote.current.run(run).catch(failed);
+    else await run().catch(failed);
+  };
+
   const tree = buildTree(index.notes ?? [], index.folders, index.order);
   const current = findFolder(tree, folder) ?? tree;
   const openedNote =
@@ -194,6 +222,7 @@ function App() {
         onOpenFolder={goTo}
         onOpenNote={(path) => setView({ kind: "nota", path })}
         onSettings={() => setSettings(true)}
+        onSwitchVault={switchVault}
         onRename={(path, title) =>
           fileAction(path, async () => {
             const note = await renameNote(path, title);

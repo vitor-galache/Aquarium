@@ -29,6 +29,13 @@ export const startup = () => invoke<Startup>("startup");
 export const openVault = (path: string) =>
   invoke<Vault>("open_vault", { path });
 
+/** Pastas abertas recentemente, da mais nova para a mais antiga. */
+export const recentVaults = () => invoke<string[]>("recent_vaults");
+
+/** Tira a pasta da lista de recentes; devolve a lista atualizada. */
+export const forgetVault = (path: string) =>
+  invoke<string[]>("forget_vault", { path });
+
 /** Valida e grava as configurações; falha se o atalho estiver em uso. */
 export const saveConfig = (config: VaultConfig) =>
   invoke<VaultConfig>("save_config", { config });

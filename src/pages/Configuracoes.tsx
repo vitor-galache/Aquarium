@@ -144,7 +144,7 @@ export function Configuracoes({ vault, onChange, onClose }: Props) {
       section: "geral",
       label: "Pasta das notas",
       description:
-        "Os arquivos Markdown ficam aqui. Trocar abre outra pasta; nada é movido.",
+        "Os arquivos Markdown ficam aqui. Abrir outra pasta não move nada; as recentes ficam no ícone da pasta.",
       stacked: true,
       control: (
         <div className="flex gap-2">
@@ -161,7 +161,7 @@ export function Configuracoes({ vault, onChange, onClose }: Props) {
             className={`${control} flex shrink-0 cursor-pointer items-center gap-2 bg-surface hover:bg-highlight`}
           >
             <FolderIcon />
-            Procurar
+            Abrir pasta…
           </button>
         </div>
       ),
