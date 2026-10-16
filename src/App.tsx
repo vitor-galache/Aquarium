@@ -3,10 +3,11 @@ import { Sidebar } from "./layout/Sidebar";
 import { MeuAquario } from "./pages/MeuAquario";
 import { PrimeiroAcesso } from "./pages/PrimeiroAcesso";
 import { NotaAberta } from "./pages/NotaAberta";
-import { Configuracoes } from "./pages/Configuracoes";
 import { Button } from "./components/Button";
 import { CaptureModal } from "./components/CaptureModal";
 import { SearchModal } from "./components/SearchModal";
+import { SettingsModal } from "./components/SettingsModal";
+import { TitleBar } from "./components/TitleBar";
 import {
   applyTheme,
   createNote,
@@ -19,7 +20,6 @@ import {
 type View =
   | { kind: "aquario" }
   | { kind: "nota"; path: string }
-  | { kind: "configuracoes" }
   | { kind: "em-breve"; title: string };
 
 function App() {
@@ -27,6 +27,7 @@ function App() {
   const [aquarium, setAquarium] = useState<Aquarium | null>(null);
   const [capturing, setCapturing] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [settings, setSettings] = useState(false);
   const [view, setView] = useState<View>({ kind: "aquario" });
   const [refreshKey, setRefreshKey] = useState(0);
   const [focus, setFocus] = useState(false);
@@ -99,6 +100,7 @@ function App() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
+      <TitleBar />
       {!focused && (
         <Sidebar
           refreshKey={refreshKey}
@@ -106,7 +108,7 @@ function App() {
           onNewNote={() => void newNote()}
           onOpenNote={(path) => setView({ kind: "nota", path })}
           onHome={() => setView({ kind: "aquario" })}
-          onSettings={() => setView({ kind: "configuracoes" })}
+          onSettings={() => setSettings(true)}
         />
       )}
       <main className="flex flex-1 flex-col gap-6 overflow-y-auto p-8">
@@ -125,15 +127,6 @@ function App() {
               setRefreshKey((k) => k + 1);
               setView({ kind: "aquario" });
             }}
-          />
-        ) : view.kind === "configuracoes" ? (
-          <Configuracoes
-            aquarium={aquarium}
-            onChange={(next) => {
-              if (next.path !== aquarium.path) setRefreshKey((k) => k + 1);
-              setAquarium(next);
-            }}
-            onBack={() => setView({ kind: "aquario" })}
           />
         ) : view.kind === "em-breve" ? (
           <div className="flex flex-col items-start gap-4">
@@ -161,6 +154,19 @@ function App() {
         <SearchModal
           onOpenNote={(path) => setView({ kind: "nota", path })}
           onClose={() => setSearching(false)}
+        />
+      )}
+      {settings && (
+        <SettingsModal
+          aquarium={aquarium}
+          onChange={(next) => {
+            if (next.path !== aquarium.path) {
+              setRefreshKey((k) => k + 1);
+              setView({ kind: "aquario" });
+            }
+            setAquarium(next);
+          }}
+          onClose={() => setSettings(false)}
         />
       )}
       {capturing && (
