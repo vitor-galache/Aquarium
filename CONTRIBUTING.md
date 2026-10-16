@@ -21,7 +21,6 @@ Para validar uma branch no CI antes do merge, use **Actions → CI → Run workf
 
 - Formatação: Prettier (TS/CSS/JSON) e rustfmt (Rust). Use `npm run format` e `npm run format:rust`.
 - Clippy sem warnings (`-D warnings`).
-- Dependências são atualizadas semanalmente via Dependabot.
 
 ## Issues
 
