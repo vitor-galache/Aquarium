@@ -41,6 +41,9 @@ export function MeuAquario({
   });
   const [notes, setNotes] = useState<NoteSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Filtros opcionais; `null` mostra tudo.
+  const [folder, setFolder] = useState<string | null>(null);
+  const [tag, setTag] = useState<string | null>(null);
 
   useEffect(() => {
     const unlisten = onIndexStatus(setStatus);
@@ -68,6 +71,16 @@ export function MeuAquario({
       current = false;
     };
   }, [path, indexing, noteCount]);
+
+  const folders = sorted(notes?.map((n) => n.folder).filter(Boolean));
+  const tags = sorted(notes?.flatMap((n) => n.tags));
+  const filtered = notes?.filter(
+    (n) =>
+      (folder === null ||
+        n.folder === folder ||
+        n.folder.startsWith(`${folder}/`)) &&
+      (tag === null || n.tags.includes(tag)),
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -123,15 +136,93 @@ export function MeuAquario({
           <Button onClick={onCapture}>Nova nota</Button>
         </div>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {notes.map((note) => (
-            <li key={note.path}>
-              <NoteRow note={note} onOpen={onOpenNote} />
-            </li>
-          ))}
-        </ul>
+        <div className="flex flex-col gap-4">
+          {(folders.length > 0 || tags.length > 0) && (
+            <div className="flex flex-wrap items-center gap-3">
+              {folders.length > 0 && (
+                <Filter
+                  label="Pasta"
+                  all="Todas as pastas"
+                  value={folder}
+                  options={folders}
+                  onChange={setFolder}
+                />
+              )}
+              {tags.length > 0 && (
+                <Filter
+                  label="Tag"
+                  all="Todas as tags"
+                  value={tag}
+                  options={tags}
+                  onChange={setTag}
+                />
+              )}
+              {(folder !== null || tag !== null) && (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setFolder(null);
+                    setTag(null);
+                  }}
+                >
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+          )}
+          {filtered?.length === 0 ? (
+            <p className="text-md text-muted">
+              Nenhuma nota com esses filtros.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {filtered?.map((note) => (
+                <li key={note.path}>
+                  <NoteRow note={note} onOpen={onOpenNote} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </div>
+  );
+}
+
+/** Valores únicos em ordem alfabética (pt-BR). */
+const sorted = (values: string[] = []) =>
+  [...new Set(values)].sort((a, b) => a.localeCompare(b, "pt-BR"));
+
+function Filter({
+  label,
+  all,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  all: string;
+  value: string | null;
+  options: string[];
+  onChange: (value: string | null) => void;
+}) {
+  // Uma pasta/tag escolhida pode sumir da lista; continua visível no seletor.
+  const values =
+    value !== null && !options.includes(value) ? [value, ...options] : options;
+  return (
+    <select
+      aria-label={label}
+      value={value ?? ""}
+      onChange={(e) => onChange(e.target.value || null)}
+      className="rounded-control border border-line bg-surface px-3 py-2 text-md text-ink outline-none focus:border-brand-light"
+    >
+      <option value="">{all}</option>
+      {values.map((v) => (
+        <option key={v} value={v}>
+          {label === "Tag" ? `#${v}` : v}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -154,6 +245,13 @@ function NoteRow({
         </h3>
         {note.excerpt && (
           <p className="truncate text-base text-muted">{note.excerpt}</p>
+        )}
+        {(note.folder || note.tags.length > 0) && (
+          <p className="truncate text-xs text-muted">
+            {[note.folder, ...note.tags.map((t) => `#${t}`)]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
         )}
       </div>
       <span className="shrink-0 text-xs text-muted">

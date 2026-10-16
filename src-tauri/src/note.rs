@@ -31,6 +31,7 @@ pub struct Note {
     pub(crate) depth: String,
     pub(crate) corrente: Option<String>,
     pub(crate) cardume: Option<String>,
+    pub(crate) tags: Vec<String>,
     pub(crate) title: String,
     body: String,
 }
@@ -133,6 +134,50 @@ impl Document {
         }
     }
 
+    /// Tags do frontmatter: `tags: [a, b]`, `tags: a, b` ou lista em bloco (`- a`).
+    fn tags(&self) -> Vec<String> {
+        let Some(i) = self.key_index("tags") else {
+            return Vec::new();
+        };
+        let lines = self.frontmatter.as_deref().unwrap_or_default();
+        let inline = lines[i].split_once(':').map_or("", |(_, v)| v.trim());
+        let items: Vec<String> = if inline.is_empty() {
+            lines[i + 1..]
+                .iter()
+                .map_while(|l| l.trim_start().strip_prefix('-').map(str::trim))
+                .map(unquote)
+                .collect()
+        } else {
+            let inner = inline
+                .strip_prefix('[')
+                .and_then(|v| v.strip_suffix(']'))
+                .unwrap_or(inline);
+            inner.split(',').map(|t| unquote(t.trim())).collect()
+        };
+        clean_tags(items)
+    }
+
+    /// Grava as tags em uma linha (`tags: [a, b]`); lista vazia remove a chave.
+    fn set_tags(&mut self, tags: &[String]) {
+        if self.tags() == tags {
+            return;
+        }
+        if let Some(i) = self.key_index("tags") {
+            let lines = self.frontmatter.as_mut().unwrap();
+            let block = lines[i + 1..]
+                .iter()
+                .take_while(|l| l.trim_start().starts_with('-'))
+                .count();
+            lines.drain(i..=i + block);
+            if !tags.is_empty() {
+                lines.insert(i, format_tags(tags));
+            }
+        } else if !tags.is_empty() {
+            let line = format_tags(tags);
+            self.frontmatter.get_or_insert_with(Vec::new).push(line);
+        }
+    }
+
     /// Completa as chaves obrigatórias que faltarem.
     fn complete(&mut self) {
         if self.frontmatter.is_none() {
@@ -219,6 +264,7 @@ impl Document {
             depth: self.get("depth").unwrap_or_default(),
             corrente: self.get("corrente"),
             cardume: self.get("cardume"),
+            tags: self.tags(),
             title: self.title(path),
             body: self.body.clone(),
         }
@@ -235,6 +281,27 @@ fn unquote(value: &str) -> String {
     } else {
         value.to_string()
     }
+}
+
+/// Remove vazias, repetidas e os caracteres que quebrariam a lista em linha.
+fn clean_tags(tags: impl IntoIterator<Item = String>) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for tag in tags {
+        let tag: String = tag
+            .chars()
+            .filter(|c| !matches!(c, ',' | '[' | ']'))
+            .collect();
+        let tag = tag.trim().trim_start_matches('#').trim().to_string();
+        if !tag.is_empty() && !out.contains(&tag) {
+            out.push(tag);
+        }
+    }
+    out
+}
+
+fn format_tags(tags: &[String]) -> String {
+    let items: Vec<String> = tags.iter().map(|t| quote(t)).collect();
+    format!("tags: [{}]", items.join(", "))
 }
 
 fn quote(value: &str) -> String {
@@ -437,6 +504,7 @@ fn save(
     expected: Option<String>,
     corrente: Option<String>,
     cardume: Option<String>,
+    tags: Option<Vec<String>>,
     db: Option<&Connection>,
 ) -> Result<Note, String> {
     let (content, mut doc) = load(path)?;
@@ -451,6 +519,9 @@ fn save(
     let clean = |v: Option<String>| v.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
     doc.set("corrente", clean(corrente).as_deref());
     doc.set("cardume", clean(cardume).as_deref());
+    if let Some(tags) = tags {
+        doc.set_tags(&clean_tags(tags));
+    }
     if let Some(conn) = db {
         if edited {
             let id = doc.get("id").unwrap_or_default();
@@ -498,6 +569,7 @@ pub fn save_note(
     expected: Option<String>,
     corrente: Option<String>,
     cardume: Option<String>,
+    tags: Option<Vec<String>>,
 ) -> Result<Note, String> {
     save(
         Path::new(&path),
@@ -505,6 +577,7 @@ pub fn save_note(
         expected,
         corrente,
         cardume,
+        tags,
         state.db().as_ref(),
     )
 }
@@ -672,6 +745,28 @@ mod tests {
         assert_eq!(note.corrente.as_deref(), Some("System Design"));
         assert_eq!(note.cardume, None);
         assert_eq!(note.title, "Título");
+        assert_eq!(note.tags, ["x", "y"]);
+    }
+
+    #[test]
+    fn tags_em_formatos_diversos() {
+        let tags = |fm: &str| Document::parse(&format!("---\n{fm}\n---\n")).tags();
+        assert_eq!(tags("tags: a, \"b c\""), ["a", "b c"]);
+        assert_eq!(tags("tags:\n  - a\n  - '#b'\nid: x"), ["a", "b"]);
+        assert_eq!(tags("tags: []"), Vec::<String>::new());
+        assert_eq!(tags("id: x"), Vec::<String>::new());
+
+        let mut doc = Document::parse("---\ntags:\n  - a\n  - b\nid: x\n---\n");
+        doc.set_tags(&["a".into(), "b".into()]);
+        assert_eq!(doc.serialize(), "---\ntags:\n  - a\n  - b\nid: x\n---\n");
+        doc.set_tags(&clean_tags(["c".into(), "estudo de caso".into()]));
+        assert_eq!(
+            doc.serialize(),
+            "---\ntags: [c, estudo de caso]\nid: x\n---\n"
+        );
+        assert_eq!(doc.tags(), ["c", "estudo de caso"]);
+        doc.set_tags(&[]);
+        assert_eq!(doc.serialize(), "---\nid: x\n---\n");
     }
 
     #[test]
@@ -734,16 +829,19 @@ mod tests {
             Some(b.body.clone()),
             Some("Infra".into()),
             None,
+            Some(vec!["a".into(), " #b ".into(), "a".into()]),
             None,
         )
         .unwrap();
         assert_eq!(saved.depth, "superficie");
         assert_eq!(saved.corrente.as_deref(), Some("Infra"));
+        assert_eq!(saved.tags, ["a", "b"]);
         assert_eq!(open_note(Path::new(&b.path), None).unwrap(), saved);
         let conflict = save(
             Path::new(&b.path),
             "x\n".into(),
             Some("velho\n".into()),
+            None,
             None,
             None,
             None,
