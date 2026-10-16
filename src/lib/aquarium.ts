@@ -51,16 +51,12 @@ export const isConflict = (error: unknown) =>
 /** Lê a nota no disco sem contar como abertura. */
 export const peekNote = (path: string) => invoke<Note>("peek_note", { path });
 
-/** Tira a nota do lodo; a profundidade nunca é escolhida pelo usuário. */
-export const bringToSurface = (path: string) =>
-  invoke<Note>("bring_to_surface", { path });
-
 export type IndexStatus = {
   indexing: boolean;
   noteCount: number;
 };
 
-/** Resumo de nota vindo do índice, para os cards do aquário. */
+/** Resumo de nota vindo do índice, para a lista de notas. */
 export type NoteSummary = {
   path: string;
   title: string;
@@ -69,6 +65,8 @@ export type NoteSummary = {
   corrente: string | null;
   cardume: string | null;
   created: string;
+  /** Última edição do arquivo, em ms desde a época Unix. */
+  modified: number;
 };
 
 export const listNotes = () => invoke<NoteSummary[]>("list_notes");

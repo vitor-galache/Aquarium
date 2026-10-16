@@ -7,7 +7,6 @@ import {
   peekNote,
   readNote,
   saveNote,
-  type Depth,
   type Note,
 } from "../lib/aquarium";
 
@@ -18,25 +17,6 @@ type Props = {
 
 /** Espera depois da última tecla antes de gravar. */
 const AUTOSAVE_MS = 800;
-
-const DEPTHS: Record<Depth, { name: string; why: string }> = {
-  superficie: {
-    name: "Superfície",
-    why: "Toda ideia nova começa aqui, perto de onde você está olhando.",
-  },
-  "meia-agua": {
-    name: "Meia-água",
-    why: "A nota ganhou corpo e foi trabalhada em mais de um dia.",
-  },
-  fundo: {
-    name: "Fundo",
-    why: "Desenvolvida, revisitada várias vezes e estável há um tempo.",
-  },
-  lodo: {
-    name: "Lodo",
-    why: "Ficou muito tempo sem ser tocada. Abri-la a traz de volta à superfície.",
-  },
-};
 
 type Status = "salvo" | "pendente" | "salvando" | "erro" | "conflito";
 
@@ -178,7 +158,7 @@ export function NotaAberta({ path, onBack }: Props) {
     return (
       <div className="flex flex-col items-start gap-4">
         <Button variant="secondary" onClick={onBack}>
-          ← Meu aquário
+          ← Notas
         </Button>
         <p role="alert" className="text-md text-ink">
           Não foi possível abrir a nota: {error}
@@ -189,13 +169,11 @@ export function NotaAberta({ path, onBack }: Props) {
 
   if (!note) return <p className="text-md text-muted">Abrindo nota…</p>;
 
-  const depth = DEPTHS[note.depth] ?? DEPTHS.superficie;
-
   return (
     <div className="flex min-h-full flex-col gap-4">
       <div className="flex items-center justify-between gap-4">
         <Button variant="secondary" onClick={onBack}>
-          ← Meu aquário
+          ← Notas
         </Button>
         <span aria-live="polite" className="text-sm text-muted">
           {status === "salvo" && savedAt ? (
@@ -233,18 +211,6 @@ export function NotaAberta({ path, onBack }: Props) {
         </div>
 
         <aside className="flex w-[220px] shrink-0 flex-col gap-5 text-base">
-          <section className="flex flex-col gap-1">
-            <h2 className="text-xs font-semibold tracking-wide text-muted uppercase">
-              Profundidade
-            </h2>
-            <p className="font-display text-title font-semibold text-ink">
-              {depth.name}
-            </p>
-            <p className="text-sm text-muted">{depth.why}</p>
-            <p className="text-xs text-muted">
-              Calculada pelo uso da nota; não é escolhida à mão.
-            </p>
-          </section>
           {(
             [
               ["corrente", "Corrente", corrente, "Ex.: System Design"],

@@ -58,7 +58,7 @@ export function CaptureModal({ dir, onClose }: Props) {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Capturar ideia"
+        aria-label="Nova nota"
         className="flex w-[560px] max-w-[calc(100vw-32px)] flex-col gap-2 rounded-panel border border-line bg-surface p-5 shadow-xl"
       >
         <textarea
@@ -75,9 +75,7 @@ export function CaptureModal({ dir, onClose }: Props) {
             {error ? (
               <span className="text-red-700">{error}</span>
             ) : saved ? (
-              <span className="text-success">
-                ✓ “{saved}” caiu na superfície
-              </span>
+              <span className="text-success">✓ “{saved}” salva</span>
             ) : (
               "A primeira linha vira o título"
             )}
