@@ -56,3 +56,19 @@ export const indexStatus = () => invoke<IndexStatus>("index_status");
 
 export const onIndexStatus = (handler: (status: IndexStatus) => void) =>
   listen<IndexStatus>("index-status", (event) => handler(event.payload));
+
+/** Captura rápida: a primeira linha vira o título (`# ...`), o resto é corpo. */
+export const captureIdea = (dir: string, text: string) => {
+  const [first, ...rest] = text.trim().split("\n");
+  const title = first.replace(/^#+\s*/, "").trim();
+  const tail = rest.join("\n").trim();
+  return createNote(
+    dir,
+    title,
+    tail ? `# ${title}\n\n${tail}\n` : `# ${title}\n`,
+  );
+};
+
+/** Pedido de captura vindo do atalho global ou da bandeja. */
+export const onOpenCapture = (handler: () => void) =>
+  listen("open-capture", () => handler());
