@@ -1,3 +1,5 @@
+import type { MouseEvent } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { SearchIcon } from "../components/Icons";
 
 type Crumb = { label: string; onClick?: () => void };
@@ -7,11 +9,20 @@ type Props = {
   onSearch: () => void;
 };
 
+/** Arrasta a janela por qualquer ponto da barra que não seja um controle; duplo clique maximiza. */
+function dragWindow(e: MouseEvent) {
+  if (e.button !== 0) return;
+  if ((e.target as HTMLElement).closest("button, a, input")) return;
+  const win = getCurrentWindow();
+  if (e.detail === 2) void win.toggleMaximize();
+  else void win.startDragging();
+}
+
 /** Barra do topo: caminho atual e busca; também arrasta a janela. */
 export function TopBar({ crumbs, onSearch }: Props) {
   return (
     <header
-      data-tauri-drag-region
+      onMouseDown={dragWindow}
       className="flex h-11 shrink-0 items-center gap-3 border-b border-line px-5 select-none"
     >
       <nav
