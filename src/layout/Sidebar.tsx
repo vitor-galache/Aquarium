@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import logoSymbol from "../assets/logo-symbol.svg";
 import { Button } from "../components/Button";
 import {
@@ -36,7 +36,6 @@ export function Sidebar({
   const [status, setStatus] = useState<IndexStatus | null>(null);
   const [notes, setNotes] = useState<NoteSummary[]>([]);
   const [query, setQuery] = useState("");
-  const search = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const unlisten = onIndexStatus(setStatus);
@@ -60,19 +59,6 @@ export function Sidebar({
       current = false;
     };
   }, [indexing, noteCount, refreshKey]);
-
-  // Ctrl/Cmd+K foca a busca de qualquer lugar do app.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        search.current?.focus();
-        search.current?.select();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
 
   const terms = normalize(query.trim()).split(/\s+/).filter(Boolean);
   const visible = terms.length
@@ -98,7 +84,6 @@ export function Sidebar({
           + Nova nota
         </Button>
         <input
-          ref={search}
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -106,8 +91,8 @@ export function Sidebar({
             if (e.key === "Escape") setQuery("");
             if (e.key === "Enter" && visible[0]) onOpenNote(visible[0].path);
           }}
-          placeholder="Buscar notas… (Ctrl+K)"
-          aria-label="Buscar notas"
+          placeholder="Filtrar notas…"
+          aria-label="Filtrar notas"
           className="w-full rounded-control border border-line bg-canvas px-3 py-2 text-md text-ink outline-none placeholder:text-muted focus:border-brand-light"
         />
       </div>

@@ -17,6 +17,7 @@ pub fn run() {
             asset::save_image,
             index::index_status,
             index::list_notes,
+            index::search_notes,
             note::read_note,
             note::create_note,
             note::save_note,

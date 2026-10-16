@@ -33,7 +33,7 @@ pub struct Note {
     pub(crate) cardume: Option<String>,
     pub(crate) tags: Vec<String>,
     pub(crate) title: String,
-    body: String,
+    pub body: String,
 }
 
 /// Nota em memória: linhas do frontmatter (sem os delimitadores) e corpo.

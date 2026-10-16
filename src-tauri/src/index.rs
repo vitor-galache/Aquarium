@@ -24,7 +24,7 @@ pub const STATUS_EVENT: &str = "index-status";
 const DEBOUNCE: Duration = Duration::from_millis(300);
 
 /// Versão do esquema; ao mudar, a tabela `notes` é reconstruída (os sinais ficam).
-const SCHEMA_VERSION: i64 = 3;
+const SCHEMA_VERSION: i64 = 4;
 
 const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS notes (
@@ -43,6 +43,12 @@ CREATE TABLE IF NOT EXISTS notes (
     size INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS notes_id ON notes(id);
+CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
+    path UNINDEXED,
+    title,
+    body,
+    tokenize = 'unicode61 remove_diacritics 2'
+);
 CREATE TABLE IF NOT EXISTS signals (
     note_id TEXT NOT NULL,
     kind TEXT NOT NULL,
@@ -83,7 +89,7 @@ pub fn open_db(root: &Path) -> Result<Connection, String> {
         .map_err(err)?;
     if version < SCHEMA_VERSION {
         conn.execute_batch(&format!(
-            "DROP TABLE IF EXISTS notes; PRAGMA user_version = {SCHEMA_VERSION};"
+            "DROP TABLE IF EXISTS notes; DROP TABLE IF EXISTS notes_fts; PRAGMA user_version = {SCHEMA_VERSION};"
         ))
         .map_err(err)?;
     }
@@ -156,11 +162,11 @@ pub fn sync(conn: &mut Connection, root: &Path) -> Result<usize, String> {
     };
 
     for path in indexed.keys().filter(|p| !files.contains_key(*p)) {
-        tx.execute(
-            "DELETE FROM notes WHERE path = ?1",
-            [path.display().to_string()],
-        )
-        .map_err(err)?;
+        let path = path.display().to_string();
+        tx.execute("DELETE FROM notes WHERE path = ?1", [&path])
+            .map_err(err)?;
+        tx.execute("DELETE FROM notes_fts WHERE path = ?1", [&path])
+            .map_err(err)?;
     }
     for (path, (mtime, size)) in &files {
         if indexed.get(path) == Some(&(*mtime, *size)) {
@@ -177,6 +183,13 @@ pub fn sync(conn: &mut Connection, root: &Path) -> Result<usize, String> {
             "INSERT OR REPLACE INTO notes (path, id, title, depth, corrente, cardume, folder, tags, created, excerpt, chars, mtime, size)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
             params![n.path, n.id, n.title, n.depth, n.corrente, n.cardume, folder, tags, n.created, excerpt, chars as i64, mtime, size],
+        )
+        .map_err(err)?;
+        tx.execute("DELETE FROM notes_fts WHERE path = ?1", [&n.path])
+            .map_err(err)?;
+        tx.execute(
+            "INSERT INTO notes_fts (path, title, body) VALUES (?1, ?2, ?3)",
+            params![n.path, n.title, n.body],
         )
         .map_err(err)?;
     }
@@ -386,6 +399,63 @@ pub fn list_notes(state: tauri::State<IndexState>) -> Result<Vec<NoteSummary>, S
     notes(&conn)
 }
 
+/// Resultado da busca rápida; `snippet` marca os termos entre `\u{1}` e `\u{2}`.
+#[derive(Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchHit {
+    path: String,
+    title: String,
+    folder: String,
+    snippet: String,
+}
+
+/// Consulta FTS5 em que cada palavra digitada vira um prefixo (`"pal"*`).
+fn fts_query(text: &str) -> Option<String> {
+    let terms: Vec<String> = text
+        .split_whitespace()
+        .map(|t| format!("\"{}\"*", t.replace('"', "\"\"")))
+        .collect();
+    (!terms.is_empty()).then(|| terms.join(" "))
+}
+
+/// Busca por título e conteúdo, títulos pesando mais que o corpo.
+pub fn search(conn: &Connection, text: &str, limit: usize) -> Result<Vec<SearchHit>, String> {
+    let Some(query) = fts_query(text) else {
+        return Ok(Vec::new());
+    };
+    let err = |e: rusqlite::Error| e.to_string();
+    let mut stmt = conn
+        .prepare(
+            "SELECT f.path, n.title, n.folder,
+                    snippet(notes_fts, 2, char(1), char(2), '…', 12)
+             FROM notes_fts f JOIN notes n ON n.path = f.path
+             WHERE notes_fts MATCH ?1
+             ORDER BY bm25(notes_fts, 0.0, 10.0, 1.0), n.mtime DESC
+             LIMIT ?2",
+        )
+        .map_err(err)?;
+    stmt.query_map(params![query, limit as i64], |r| {
+        Ok(SearchHit {
+            path: r.get(0)?,
+            title: r.get(1)?,
+            folder: r.get(2)?,
+            snippet: r.get(3)?,
+        })
+    })
+    .map_err(err)?
+    .collect::<Result<_, _>>()
+    .map_err(err)
+}
+
+#[tauri::command]
+pub fn search_notes(
+    state: tauri::State<IndexState>,
+    query: String,
+) -> Result<Vec<SearchHit>, String> {
+    let conn = state.db().ok_or("Nenhum aquário aberto.")?;
+    search(&conn, &query, 30)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -437,6 +507,53 @@ mod tests {
         fs::create_dir_all(&internal).unwrap();
         let mut conn = open_db(&root).unwrap();
         assert_eq!(sync(&mut conn, &root).unwrap(), 1);
+
+        drop(conn);
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn busca_titulo_e_conteudo_rapido() {
+        let root = std::env::temp_dir().join(format!("aquarium-search-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join(crate::aquarium::INTERNAL_DIR)).unwrap();
+        fs::create_dir_all(root.join("estudo")).unwrap();
+        fs::write(
+            root.join("estudo/peixe.md"),
+            "# Peixes\n\nO salmão nada contra a corrente.\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("outra.md"),
+            "# Outra\n\nNada a ver com \"aspas\".\n",
+        )
+        .unwrap();
+        for i in 0..1000 {
+            fs::write(
+                root.join(format!("n{i}.md")),
+                format!("# Nota {i}\n\nTexto qualquer {i} sobre ideias.\n"),
+            )
+            .unwrap();
+        }
+        let mut conn = open_db(&root).unwrap();
+        sync(&mut conn, &root).unwrap();
+
+        let hits = search(&conn, "salmao corr", 30).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].title, "Peixes");
+        assert_eq!(hits[0].folder, "estudo");
+        assert!(hits[0].snippet.contains("\u{1}salmão\u{2}"));
+        assert_eq!(search(&conn, "peix", 30).unwrap()[0].title, "Peixes");
+        assert!(search(&conn, "\"aspas", 30).unwrap().len() == 1);
+        assert!(search(&conn, "   ", 30).unwrap().is_empty());
+
+        let start = std::time::Instant::now();
+        assert_eq!(search(&conn, "ideias", 30).unwrap().len(), 30);
+        assert!(start.elapsed() < Duration::from_millis(100));
+
+        fs::remove_file(root.join("estudo/peixe.md")).unwrap();
+        sync(&mut conn, &root).unwrap();
+        assert!(search(&conn, "salmao", 30).unwrap().is_empty());
 
         drop(conn);
         fs::remove_dir_all(&root).unwrap();

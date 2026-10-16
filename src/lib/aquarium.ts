@@ -132,3 +132,14 @@ export const captureIdea = (dir: string, text: string) => {
 /** Pedido de captura vindo do atalho global ou da bandeja. */
 export const onOpenCapture = (handler: () => void) =>
   listen("open-capture", () => handler());
+
+/** Resultado da busca; `snippet` marca os termos entre `\u0001` e `\u0002`. */
+export type SearchHit = {
+  path: string;
+  title: string;
+  folder: string;
+  snippet: string;
+};
+
+export const searchNotes = (query: string) =>
+  invoke<SearchHit[]>("search_notes", { query });
