@@ -1,7 +1,7 @@
 //! Captura rápida: atalho global, bandeja e janela que fecha para a bandeja.
 //!
 //! O app nunca sai ao fechar a janela; ele fica na bandeja para que o atalho
-//! `Ctrl+Shift+Espaço` continue abrindo o modal de captura.
+//! (padrão `Ctrl+Shift+Espaço`, configurável) continue abrindo o modal de captura.
 
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -10,6 +10,12 @@ use tauri::{App, AppHandle, Emitter, Manager, WindowEvent};
 const MAIN: &str = "main";
 /// Evento ouvido pelo front para abrir o modal de captura.
 const OPEN_CAPTURE: &str = "open-capture";
+/// Atalho de captura usado quando o aquário não define outro.
+pub const DEFAULT_SHORTCUT: &str = "Ctrl+Shift+Space";
+
+/// Atalho de captura registrado no momento.
+#[derive(Default)]
+pub struct CaptureShortcut(std::sync::Mutex<Option<String>>);
 
 /// Mostra e foca a janela principal.
 pub fn show_main(app: &AppHandle) {
@@ -75,23 +81,53 @@ fn setup_tray(app: &App) -> tauri::Result<()> {
 
 #[cfg(desktop)]
 fn setup_shortcut(app: &App) -> tauri::Result<()> {
-    use tauri_plugin_global_shortcut::{
-        Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState,
-    };
+    use tauri_plugin_global_shortcut::ShortcutState;
 
-    let shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
+    // Só o atalho de captura fica registrado, então qualquer disparo abre o modal.
     app.handle().plugin(
         tauri_plugin_global_shortcut::Builder::new()
-            .with_handler(move |app, pressed, event| {
-                if pressed == &shortcut && event.state() == ShortcutState::Pressed {
+            .with_handler(|app, _shortcut, event| {
+                if event.state() == ShortcutState::Pressed {
                     open_capture(app);
                 }
             })
             .build(),
     )?;
     // Outro app pode já ter o atalho; o app segue funcionando sem ele.
-    if let Err(error) = app.global_shortcut().register(shortcut) {
-        eprintln!("atalho de captura indisponível: {error}");
+    if let Err(error) = set_shortcut(app.handle(), DEFAULT_SHORTCUT) {
+        eprintln!("{error}");
     }
+    Ok(())
+}
+
+/// Troca o atalho global de captura (ex.: `Ctrl+Shift+Space`).
+///
+/// Registra o novo antes de soltar o antigo: se falhar, o anterior continua valendo.
+#[cfg(desktop)]
+pub fn set_shortcut(app: &AppHandle, shortcut: &str) -> Result<(), String> {
+    use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
+
+    let parsed: Shortcut = shortcut
+        .parse()
+        .map_err(|_| format!("Atalho inválido: {shortcut}."))?;
+    let state = app.state::<CaptureShortcut>();
+    let mut current = state.0.lock().unwrap();
+    let previous = current.as_deref().and_then(|s| s.parse::<Shortcut>().ok());
+    if previous == Some(parsed) {
+        return Ok(());
+    }
+    let global = app.global_shortcut();
+    global.register(parsed).map_err(|e| {
+        format!("Não foi possível usar o atalho {shortcut}; outro app pode já usá-lo ({e}).")
+    })?;
+    if let Some(previous) = previous {
+        let _ = global.unregister(previous);
+    }
+    *current = Some(shortcut.to_string());
+    Ok(())
+}
+
+#[cfg(not(desktop))]
+pub fn set_shortcut(_app: &AppHandle, _shortcut: &str) -> Result<(), String> {
     Ok(())
 }

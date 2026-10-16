@@ -12,6 +12,8 @@
   --color-muted: #60798e;
   --color-brand: #1d5f9e;
   --color-brand-light: #4ba9e0;
+  /* Fundo do mar: hover do botão principal e véu dos modais. */
+  --color-abyss: #0e2a47;
   --color-foam: #9ed8f7;
   --color-highlight: #e6f6ff;
   --color-success: #347b71;
@@ -56,6 +58,49 @@
   --spacing-toolbar: 66px;
   --spacing-search: 282px;
   --spacing-layer-legend: 158px;
+}
+
+/* Tema escuro: as mesmas águas, vistas do fundo. Repetido para o tema do sistema. */
+@layer base {
+  :root[data-theme="escuro"] {
+    color-scheme: dark;
+    --color-ink: #e6f6ff;
+    --color-muted: #8fa9bf;
+    --color-brand: #4ba9e0;
+    --color-brand-light: #9ed8f7;
+    --color-foam: #2c6a9c;
+    --color-highlight: #133a5e;
+    --color-success: #5fb3a6;
+    --color-canvas: #0a1f35;
+    --color-surface: #0e2a47;
+    --color-line: #1f4468;
+    --color-abyss: #04121f;
+    --color-layer-surface: #123757;
+    --color-layer-midwater: #0f304e;
+    --color-layer-deep: #0c2843;
+    --color-layer-silt: #1a2a38;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --color-ink: #e6f6ff;
+    --color-muted: #8fa9bf;
+    --color-brand: #4ba9e0;
+    --color-brand-light: #9ed8f7;
+    --color-foam: #2c6a9c;
+    --color-highlight: #133a5e;
+    --color-success: #5fb3a6;
+    --color-canvas: #0a1f35;
+    --color-surface: #0e2a47;
+    --color-line: #1f4468;
+    --color-abyss: #04121f;
+    --color-layer-surface: #123757;
+    --color-layer-midwater: #0f304e;
+    --color-layer-deep: #0c2843;
+    --color-layer-silt: #1a2a38;
+  }
 }
 
 @layer base {

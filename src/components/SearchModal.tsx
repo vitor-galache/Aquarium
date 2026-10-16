@@ -82,7 +82,7 @@ export function SearchModal({ onOpenNote, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-ink/30 pt-[14vh]"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-abyss/40 pt-[14vh]"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}

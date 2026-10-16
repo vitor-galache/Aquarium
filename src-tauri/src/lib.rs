@@ -10,10 +10,12 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(index::IndexState::default())
+        .manage(capture::CaptureShortcut::default())
         .setup(|app| Ok(capture::setup(app)?))
         .invoke_handler(tauri::generate_handler![
             aquarium::startup,
             aquarium::open_aquarium,
+            aquarium::save_config,
             asset::save_image,
             index::index_status,
             index::list_notes,

@@ -1,10 +1,21 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
+export type Theme = "sistema" | "claro" | "escuro";
+
+/** Configurações do aquário, gravadas em `.aquarium/config.json`. */
+export type AquariumConfig = {
+  version: number;
+  /** Atalho global no formato do Tauri (ex.: `Ctrl+Shift+Space`). */
+  captureShortcut: string;
+  theme: Theme;
+};
+
 export type Aquarium = {
   path: string;
   noteCount: number;
   isNew: boolean;
+  config: AquariumConfig;
 };
 
 export type Startup = {
@@ -17,6 +28,16 @@ export const startup = () => invoke<Startup>("startup");
 
 export const openAquarium = (path: string) =>
   invoke<Aquarium>("open_aquarium", { path });
+
+/** Valida e grava as configurações; falha se o atalho estiver em uso. */
+export const saveConfig = (config: AquariumConfig) =>
+  invoke<AquariumConfig>("save_config", { config });
+
+/** Aplica o tema no documento; `sistema` deixa a media query decidir. */
+export const applyTheme = (theme: Theme) => {
+  if (theme === "sistema") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+};
 
 export type Depth = "superficie" | "meia-agua" | "fundo" | "lodo";
 

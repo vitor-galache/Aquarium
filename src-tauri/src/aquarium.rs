@@ -17,6 +17,7 @@ pub struct Aquarium {
     path: String,
     note_count: usize,
     is_new: bool,
+    config: AquariumConfig,
 }
 
 #[derive(Serialize)]
@@ -33,9 +34,69 @@ struct AppState {
     last_path: Option<PathBuf>,
 }
 
-#[derive(Serialize, Deserialize)]
-struct AquariumConfig {
+/// Tema da interface; `sistema` segue o modo claro/escuro do sistema.
+#[derive(Serialize, Deserialize, Clone, Copy, Default, PartialEq, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum Theme {
+    #[default]
+    Sistema,
+    Claro,
+    Escuro,
+}
+
+/// Configurações do aquário, em `.aquarium/config.json`.
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct AquariumConfig {
+    #[serde(default = "config_version")]
     version: u32,
+    #[serde(default = "default_shortcut")]
+    capture_shortcut: String,
+    #[serde(default)]
+    theme: Theme,
+}
+
+fn config_version() -> u32 {
+    1
+}
+
+fn default_shortcut() -> String {
+    crate::capture::DEFAULT_SHORTCUT.to_string()
+}
+
+impl Default for AquariumConfig {
+    fn default() -> Self {
+        Self {
+            version: config_version(),
+            capture_shortcut: default_shortcut(),
+            theme: Theme::default(),
+        }
+    }
+}
+
+fn config_path(root: &Path) -> PathBuf {
+    root.join(INTERNAL_DIR).join(CONFIG_FILE)
+}
+
+/// Lê a configuração; arquivo ausente ou corrompido volta ao padrão.
+fn load_config(root: &Path) -> AquariumConfig {
+    fs::read_to_string(config_path(root))
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+fn write_config(root: &Path, config: &AquariumConfig) -> Result<(), String> {
+    let json = serde_json::to_string_pretty(config).map_err(|e| e.to_string())?;
+    fs::write(config_path(root), json)
+        .map_err(|e| format!("Não foi possível salvar as configurações: {e}"))
+}
+
+/// Aplica o que depende do app (atalho global); falhas não impedem abrir o aquário.
+fn apply_config(app: &AppHandle, config: &AquariumConfig) {
+    if let Err(error) = crate::capture::set_shortcut(app, &config.capture_shortcut) {
+        eprintln!("{error}");
+    }
 }
 
 fn state_path(app: &AppHandle) -> Result<PathBuf, String> {
@@ -96,12 +157,10 @@ fn prepare(path: &Path) -> Result<Aquarium, String> {
     let internal = path.join(INTERNAL_DIR);
     let is_new = !internal.exists();
     fs::create_dir_all(&internal).map_err(inaccessible)?;
-    let config = internal.join(CONFIG_FILE);
-    if !config.exists() {
-        let json = serde_json::to_string_pretty(&AquariumConfig { version: 1 })
-            .map_err(|e| e.to_string())?;
-        fs::write(&config, json).map_err(inaccessible)?;
+    if !config_path(path).exists() {
+        write_config(path, &AquariumConfig::default())?;
     }
+    let config = load_config(path);
 
     let note_count = count_notes(path)
         .map_err(|e| format!("A pasta {} está inacessível: {e}", path.display()))?;
@@ -109,6 +168,7 @@ fn prepare(path: &Path) -> Result<Aquarium, String> {
         path: path.display().to_string(),
         note_count,
         is_new,
+        config,
     })
 }
 
@@ -131,7 +191,9 @@ pub fn startup(app: AppHandle) -> Startup {
 
     // Não recria a pasta lembrada: se sumiu (disco removido, renomeada), avisamos.
     let result = if last.is_dir() {
-        prepare(&last).and_then(|a| crate::index::start(&app, &last).map(|()| a))
+        prepare(&last)
+            .and_then(|a| crate::index::start(&app, &last).map(|()| a))
+            .inspect(|a| apply_config(&app, &a.config))
     } else {
         Err(format!(
             "Não encontramos a pasta {}. Ela pode ter sido movida, renomeada ou estar em um disco desconectado.",
@@ -158,6 +220,7 @@ pub fn open_aquarium(app: AppHandle, path: String) -> Result<Aquarium, String> {
     let path = PathBuf::from(path);
     let aquarium = prepare(&path)?;
     crate::index::start(&app, &path)?;
+    apply_config(&app, &aquarium.config);
     save_state(
         &app,
         &AppState {
@@ -165,6 +228,19 @@ pub fn open_aquarium(app: AppHandle, path: String) -> Result<Aquarium, String> {
         },
     )?;
     Ok(aquarium)
+}
+
+/// Salva as configurações do aquário aberto; o atalho é validado antes de gravar.
+#[tauri::command]
+pub fn save_config(
+    app: AppHandle,
+    state: tauri::State<crate::index::IndexState>,
+    config: AquariumConfig,
+) -> Result<AquariumConfig, String> {
+    let root = state.root().ok_or("Nenhum aquário aberto.")?;
+    crate::capture::set_shortcut(&app, &config.capture_shortcut)?;
+    write_config(&root, &config)?;
+    Ok(config)
 }
 
 #[cfg(test)]
@@ -188,6 +264,30 @@ mod tests {
         let existente = prepare(&root).unwrap();
         assert!(!existente.is_new);
         assert_eq!(existente.note_count, 2);
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn config_antiga_ganha_padroes_e_persiste() {
+        let root = std::env::temp_dir().join(format!("aquarium-config-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join(INTERNAL_DIR)).unwrap();
+        fs::write(config_path(&root), r#"{ "version": 1 }"#).unwrap();
+
+        let config = prepare(&root).unwrap().config;
+        assert_eq!(config, AquariumConfig::default());
+
+        let novo = AquariumConfig {
+            capture_shortcut: "Alt+KeyJ".into(),
+            theme: Theme::Escuro,
+            ..config
+        };
+        write_config(&root, &novo).unwrap();
+        assert_eq!(load_config(&root), novo);
+        let json = fs::read_to_string(config_path(&root)).unwrap();
+        assert!(json.contains(r#""theme": "escuro""#));
+        assert!(json.contains(r#""captureShortcut": "Alt+KeyJ""#));
 
         fs::remove_dir_all(&root).unwrap();
     }
