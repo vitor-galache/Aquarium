@@ -16,7 +16,6 @@ import {
   NewFolderIcon,
   UpDownIcon,
 } from "../components/Icons";
-import type { NoteSummary } from "../lib/aquarium";
 import {
   ancestors,
   countNotes,
@@ -42,7 +41,12 @@ type Props = {
   onRename: (path: string, title: string) => void;
   onDuplicate: (path: string) => void;
   onTrash: (path: string) => void;
+  /** Move a nota para outra pasta (`""` é a raiz). */
+  onMoveNote: (path: string, folder: string) => void;
+  onTrashFolder: (folder: string) => void;
 };
+
+type MenuItem = readonly [label: string, action: () => void];
 
 const folderName = (path: string) =>
   path.split(/[\\/]/).filter(Boolean).pop() ?? path;
@@ -68,13 +72,15 @@ export function Sidebar({
   onRename,
   onDuplicate,
   onTrash,
+  onMoveNote,
+  onTrashFolder,
 }: Props) {
   // Pastas abertas/fechadas pelo usuário; as demais seguem a pasta atual.
   const [toggled, setToggled] = useState<Map<string, boolean>>(new Map());
   const [menu, setMenu] = useState<{
-    note: NoteSummary;
     x: number;
     y: number;
+    items: MenuItem[];
   } | null>(null);
   const [renaming, setRenaming] = useState<{
     path: string;
@@ -82,54 +88,93 @@ export function Sidebar({
   } | null>(null);
 
   const [newFolder, setNewFolder] = useState<string | null>(null);
-  // Item sendo arrastado e onde cairia (antes/depois de outro da mesma pasta).
-  const [drag, setDrag] = useState<{ parent: string; key: string } | null>(
-    null,
-  );
-  const [drop, setDrop] = useState<{ key: string; before: boolean } | null>(
-    null,
-  );
+  // Item arrastado (`note` quando é nota) e onde cairia: antes/depois de um
+  // irmão (reordenar) ou dentro de uma pasta (mover). `key` "" é a raiz.
+  const [drag, setDrag] = useState<{
+    parent: string;
+    key: string;
+    note?: string;
+  } | null>(null);
+  const [drop, setDrop] = useState<{
+    key: string;
+    mode: "before" | "after" | "into";
+  } | null>(null);
+
+  const openMenu = (e: MouseEvent, items: MenuItem[]) => {
+    e.preventDefault();
+    // Mantém o menu dentro da janela.
+    setMenu({
+      x: Math.min(e.clientX, window.innerWidth - 200),
+      y: Math.min(e.clientY, window.innerHeight - items.length * 34 - 16),
+      items,
+    });
+  };
+
+  const endDrag = () => {
+    setDrag(null);
+    setDrop(null);
+  };
 
   const dragProps = (parent: Folder, item: Item) => ({
     draggable: renaming === null,
     onDragStart: (e: DragEvent) => {
       e.dataTransfer.effectAllowed = "move";
       e.dataTransfer.setData("text/plain", item.key);
-      setDrag({ parent: parent.path, key: item.key });
+      setDrag({
+        parent: parent.path,
+        key: item.key,
+        note: item.kind === "note" ? item.note.path : undefined,
+      });
     },
     onDragOver: (e: DragEvent) => {
-      // Só reordena entre irmãos da mesma pasta.
-      if (!drag || drag.parent !== parent.path || drag.key === item.key) return;
+      if (!drag || (drag.parent === parent.path && drag.key === item.key))
+        return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const y = (e.clientY - rect.top) / rect.height;
+      const sibling = drag.parent === parent.path;
+      // Nota sobre o meio de uma pasta (ou vinda de outra pasta) entra nela.
+      const into =
+        item.kind === "folder" &&
+        drag.note !== undefined &&
+        item.folder.path !== drag.parent &&
+        (!sibling || (y > 0.25 && y < 0.75));
+      const key = sibling || into ? item.key : null;
+      if (key === null) return;
       e.preventDefault();
       e.stopPropagation();
-      const rect = e.currentTarget.getBoundingClientRect();
-      const before = e.clientY < rect.top + rect.height / 2;
-      if (drop?.key !== item.key || drop.before !== before)
-        setDrop({ key: item.key, before });
+      const mode = into ? "into" : y < 0.5 ? "before" : "after";
+      if (drop?.key !== key || drop.mode !== mode) setDrop({ key, mode });
     },
     onDrop: (e: DragEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      if (!drag || !drop) return;
-      const keys = parent.items.map((i) => i.key).filter((k) => k !== drag.key);
-      const at = keys.indexOf(drop.key) + (drop.before ? 0 : 1);
-      keys.splice(at, 0, drag.key);
-      onReorder(parent.path, keys);
-      setDrag(null);
-      setDrop(null);
+      if (!drag || !drop) return endDrag();
+      if (drop.mode === "into" && item.kind === "folder" && drag.note) {
+        onMoveNote(drag.note, item.folder.path);
+      } else if (drop.mode !== "into") {
+        const keys = parent.items
+          .map((i) => i.key)
+          .filter((k) => k !== drag.key);
+        keys.splice(
+          keys.indexOf(drop.key) + (drop.mode === "before" ? 0 : 1),
+          0,
+          drag.key,
+        );
+        onReorder(parent.path, keys);
+      }
+      endDrag();
     },
-    onDragEnd: () => {
-      setDrag(null);
-      setDrop(null);
-    },
+    onDragEnd: endDrag,
   });
 
   const dropLine = (key: string) =>
-    drop?.key === key
-      ? drop.before
-        ? "shadow-[inset_0_2px_0_var(--color-brand-light)]"
-        : "shadow-[inset_0_-2px_0_var(--color-brand-light)]"
-      : "";
+    drop?.key !== key
+      ? ""
+      : drop.mode === "into"
+        ? "bg-highlight ring-1 ring-brand-light ring-inset"
+        : drop.mode === "before"
+          ? "shadow-[inset_0_2px_0_var(--color-brand-light)]"
+          : "shadow-[inset_0_-2px_0_var(--color-brand-light)]";
 
   useEffect(() => {
     if (!menu) return;
@@ -186,10 +231,16 @@ export function Sidebar({
           type="button"
           {...dragProps(parent, item)}
           onClick={() => onOpenNote(note.path)}
-          onContextMenu={(e: MouseEvent) => {
-            e.preventDefault();
-            setMenu({ note, x: e.clientX, y: e.clientY });
-          }}
+          onContextMenu={(e: MouseEvent) =>
+            openMenu(e, [
+              [
+                "Renomear",
+                () => setRenaming({ path: note.path, title: note.title }),
+              ],
+              ["Duplicar", () => onDuplicate(note.path)],
+              ["Mover para a lixeira", () => onTrash(note.path)],
+            ])
+          }
           aria-current={active ? "page" : undefined}
           title={note.title}
           style={indent(depth)}
@@ -225,6 +276,11 @@ export function Sidebar({
           <button
             type="button"
             {...dragProps(folder, item)}
+            onContextMenu={(e: MouseEvent) =>
+              openMenu(e, [
+                ["Mover pasta para a lixeira", () => onTrashFolder(child.path)],
+              ])
+            }
             onClick={() => {
               setToggled((prev) => new Map(prev).set(child.path, !expanded));
               onOpenFolder(child.path);
@@ -260,7 +316,7 @@ export function Sidebar({
   const empty = tree.folders.length === 0 && tree.notes.length === 0;
 
   return (
-    <nav className="flex h-full w-[264px] shrink-0 flex-col border-r border-line bg-surface">
+    <nav className="flex h-full w-[264px] shrink-0 flex-col border-r border-line bg-surface select-none">
       {/* Espaço dos botões da janela (barra de título escondida). */}
       <div data-tauri-drag-region className="h-11 shrink-0" />
 
@@ -332,7 +388,7 @@ export function Sidebar({
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pt-0.5 pb-3">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pt-0.5 pb-3">
         {newFolder !== null && (
           <label className="mb-px flex h-[30px] items-center gap-1.5 pl-[18px]">
             <FolderIcon className="shrink-0 text-brand-light" />
@@ -363,7 +419,24 @@ export function Sidebar({
             Nenhuma nota ainda.
           </p>
         ) : (
-          <ul className="flex flex-col gap-px">{folderRows(tree, 0)}</ul>
+          <ul
+            className={`flex flex-1 flex-col gap-px rounded-chip ${
+              drop?.key === "" ? "ring-1 ring-brand-light ring-inset" : ""
+            }`}
+            onDragOver={(e) => {
+              // Soltar fora das pastas leva a nota para a raiz.
+              if (!drag?.note || drag.parent === "") return;
+              e.preventDefault();
+              if (drop?.key !== "") setDrop({ key: "", mode: "into" });
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (drag?.note && drop?.key === "") onMoveNote(drag.note, "");
+              endDrag();
+            }}
+          >
+            {folderRows(tree, 0)}
+          </ul>
         )}
       </div>
 
@@ -385,17 +458,7 @@ export function Sidebar({
           onMouseDown={(e) => e.stopPropagation()}
           className="fixed z-50 flex min-w-[160px] flex-col gap-0.5 rounded-card border border-line bg-surface p-1 shadow-xl"
         >
-          {(
-            [
-              [
-                "Renomear",
-                () =>
-                  setRenaming({ path: menu.note.path, title: menu.note.title }),
-              ],
-              ["Duplicar", () => onDuplicate(menu.note.path)],
-              ["Mover para a lixeira", () => onTrash(menu.note.path)],
-            ] as const
-          ).map(([label, action]) => (
+          {menu.items.map(([label, action]) => (
             <li key={label}>
               <button
                 type="button"

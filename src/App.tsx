@@ -15,6 +15,8 @@ import {
   createFolder,
   createNote,
   duplicateNote,
+  moveNote,
+  trashFolder,
   renameNote,
   trashNote,
   onOpenCapture,
@@ -191,6 +193,28 @@ function App() {
             setView({ kind: "nota", path: note.path });
           })
         }
+        onMoveNote={(path, target) =>
+          fileAction(path, async () => {
+            const moved = await moveNote(path, target);
+            if (isOpen(path)) setView({ kind: "nota", path: moved });
+          })
+        }
+        onTrashFolder={(target) => {
+          // A nota aberta dentro da pasta vai junto: grava antes e sai dela.
+          const inside = (f: string) =>
+            f === target || f.startsWith(`${target}/`);
+          const run = async () => {
+            await trashFolder(target);
+            if (inside(crumbFolder))
+              goTo(target.split("/").slice(0, -1).join("/"));
+            setRefreshKey((k) => k + 1);
+          };
+          const failed = (error: unknown) =>
+            window.console.error("Não foi possível excluir a pasta:", error);
+          if (view.kind === "nota" && openedNote && inside(openedNote.folder))
+            void openNote.current?.run(run);
+          else run().catch(failed);
+        }}
         onTrash={(path) =>
           fileAction(path, async () => {
             await trashNote(path);

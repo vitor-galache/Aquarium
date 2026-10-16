@@ -107,7 +107,7 @@ export function SettingsModal({ aquarium, onChange, onClose }: Props) {
     const selected = await open({
       directory: true,
       defaultPath: aquarium.path,
-      title: "Escolha a pasta do seu aquário",
+      title: "Escolha a pasta das notas",
     });
     if (typeof selected !== "string" || selected === aquarium.path) return;
     setBusy(true);

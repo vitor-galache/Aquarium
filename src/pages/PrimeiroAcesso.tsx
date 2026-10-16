@@ -48,7 +48,7 @@ export function PrimeiroAcesso({ initialPath, initialError, onOpen }: Props) {
     const selected = await open({
       directory: true,
       defaultPath: path ?? undefined,
-      title: "Escolha a pasta do seu aquário",
+      title: "Escolha a pasta das notas",
     });
     if (typeof selected === "string") {
       setPath(selected);
@@ -85,10 +85,9 @@ export function PrimeiroAcesso({ initialPath, initialError, onOpen }: Props) {
           Ideias e estudo que ganham profundidade.
         </h1>
         <p className="text-[16px] text-muted">
-          Primeiro, jogue na água.
-          <br />A organização vem depois,
+          Escreva primeiro.
           <br />
-          no seu ritmo.
+          Organize depois, no seu ritmo.
         </p>
         <div className="flex flex-col overflow-hidden rounded-panel">
           {layers.map((layer) => (
@@ -133,8 +132,7 @@ export function PrimeiroAcesso({ initialPath, initialError, onOpen }: Props) {
             </div>
           </div>
           <p className="text-xs text-muted">
-            Uma pasta vazia começa um novo aquário. Se já houver notas, elas
-            continuam suas.
+            Pode ser uma pasta vazia ou uma que já tenha notas Markdown.
           </p>
           <Button
             variant="secondary"
@@ -161,7 +159,7 @@ export function PrimeiroAcesso({ initialPath, initialError, onOpen }: Props) {
           disabled={!path || opening}
           onClick={confirm}
         >
-          Abrir / criar meu aquário
+          Abrir pasta
         </Button>
 
         <div className="flex flex-col gap-2">

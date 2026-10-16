@@ -413,7 +413,7 @@ pub fn slugify(title: &str) -> String {
 }
 
 /// Primeiro caminho livre `slug.md`, `slug-2.md`, `slug-3.md`… (sem diferenciar caixa).
-fn free_path(dir: &Path, slug: &str) -> Result<PathBuf, String> {
+pub(crate) fn free_path(dir: &Path, slug: &str) -> Result<PathBuf, String> {
     let existing: Vec<String> = fs::read_dir(dir)
         .map_err(|e| e.to_string())?
         .filter_map(|e| e.ok()?.file_name().into_string().ok())

@@ -12,7 +12,7 @@ export function TopBar({ crumbs, onSearch }: Props) {
   return (
     <header
       data-tauri-drag-region
-      className="flex h-11 shrink-0 items-center gap-3 border-b border-line px-5"
+      className="flex h-11 shrink-0 items-center gap-3 border-b border-line px-5 select-none"
     >
       <nav
         aria-label="Caminho"
