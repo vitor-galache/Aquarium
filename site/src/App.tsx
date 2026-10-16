@@ -11,7 +11,6 @@ const RELEASES = `${REPO}/releases/latest`;
 function sistema() {
   const ua = navigator.userAgent;
   if (/Mac/.test(ua)) return "macOS";
-  if (/Win/.test(ua)) return "Windows";
   if (/Linux/.test(ua)) return "Linux";
   return null;
 }
@@ -119,7 +118,7 @@ export function App() {
           </a>
         </Button>
         <p className="mt-3 text-sm text-muted">
-          macOS, Windows e Linux ·{" "}
+          macOS e Linux (Windows em breve) ·{" "}
           <a href={RELEASES} className="text-brand hover:underline">
             todas as versões
           </a>
@@ -164,9 +163,7 @@ export function App() {
             Para backup ou sincronização, use a ferramenta que preferir.
           </p>
           <h3 className="mb-2 font-semibold">Atalhos</h3>
-          <p className="mb-2 text-sm text-muted">
-            No Windows e no Linux, ⌘ é Ctrl.
-          </p>
+          <p className="mb-2 text-sm text-muted">No Linux, ⌘ é Ctrl.</p>
           <div className="divide-y text-md">
             {ATALHOS.map(([teclas, acao]) => (
               <div
