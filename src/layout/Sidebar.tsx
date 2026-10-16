@@ -53,7 +53,7 @@ const rowClass =
 const iconButton =
   "flex size-[26px] cursor-pointer items-center justify-center rounded-chip text-muted transition-colors hover:bg-highlight hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-light";
 
-/** Explorador de arquivos do aquário: pastas e notas `.md`. */
+/** Explorador de arquivos da pasta de notas: pastas e notas `.md`. */
 export function Sidebar({
   root,
   tree,
@@ -332,7 +332,7 @@ export function Sidebar({
       >
         <img src={logoSymbol} alt="" width={20} height={30} />
         <span className="font-display text-[19px] font-light tracking-tight text-ink">
-          aquarium
+          notesea
         </span>
       </button>
 

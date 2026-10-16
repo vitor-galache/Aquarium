@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { searchNotes, type SearchHit } from "../lib/aquarium";
+import { searchNotes, type SearchHit } from "../lib/vault";
 
 type Props = {
   onOpenNote: (path: string) => void;

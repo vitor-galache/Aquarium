@@ -2,7 +2,7 @@ import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { TitleBar } from "../components/TitleBar";
 import { Button } from "../components/Button";
-import { openAquarium, type Aquarium } from "../lib/aquarium";
+import { openVault, type Vault } from "../lib/vault";
 import logoSymbol from "../assets/logo-symbol.svg";
 import folderIcon from "../assets/icons/folder.svg";
 import arrowIcon from "../assets/icons/arrow-right.svg";
@@ -28,7 +28,7 @@ const layers = [
 type Props = {
   initialPath: string | null;
   initialError: string | null;
-  onOpen: (aquarium: Aquarium) => void;
+  onOpen: (vault: Vault) => void;
 };
 
 function folderLabel(path: string) {
@@ -60,7 +60,7 @@ export function PrimeiroAcesso({ initialPath, initialError, onOpen }: Props) {
     if (!path) return;
     setOpening(true);
     try {
-      onOpen(await openAquarium(path));
+      onOpen(await openVault(path));
     } catch (e) {
       setError(String(e));
     } finally {
@@ -76,7 +76,7 @@ export function PrimeiroAcesso({ initialPath, initialError, onOpen }: Props) {
       <aside className="flex w-[480px] shrink-0 flex-col gap-6 bg-highlight px-[52px] pt-12 pb-10">
         <div className="flex items-center gap-[7px]">
           <img src={logoSymbol} alt="" width={27} height={40.5} />
-          <span className="font-display text-logo text-ink">aquarium</span>
+          <span className="font-display text-logo text-ink">notesea</span>
         </div>
         <p className="text-xs font-semibold text-brand">
           SEU ESPAÇO DE CONHECIMENTO
@@ -106,7 +106,7 @@ export function PrimeiroAcesso({ initialPath, initialError, onOpen }: Props) {
       <main className="flex flex-1 flex-col gap-6 overflow-y-auto px-20 pt-26">
         <div className="flex flex-col gap-3">
           <p className="text-xs font-semibold text-brand">
-            BEM-VINDO AO AQUARIUM
+            BEM-VINDO AO NOTESEA
           </p>
           <h2 className="max-w-[260px] font-display text-heading font-semibold">
             Onde suas ideias vão morar?

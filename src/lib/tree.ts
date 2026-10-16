@@ -1,8 +1,8 @@
-import type { NoteSummary, Order } from "./aquarium";
+import type { NoteSummary, Order } from "./vault";
 
 /** Pasta do explorador, montada a partir do campo `folder` do índice. */
 export type Folder = {
-  /** Caminho relativo ao aquário, com `/` (`""` na raiz). */
+  /** Caminho relativo à pasta de notas, com `/` (`""` na raiz). */
   path: string;
   name: string;
   folders: Folder[];
@@ -104,6 +104,6 @@ export const countNotes = (folder: Folder): number =>
 
 export const notesLabel = (n: number) => (n === 1 ? "1 nota" : `${n} notas`);
 
-/** Pasta do aquário no disco, para gravar notas nela. */
+/** Subpasta no disco, para gravar notas nela. */
 export const folderDir = (root: string, folder: string) =>
   folder ? `${root}/${folder}` : root;

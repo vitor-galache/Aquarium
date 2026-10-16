@@ -12,5 +12,5 @@
 - [ ] `npm run lint:rust` e `npm run format:rust:check` passam localmente
 - [ ] `npm run build` funciona
 - [ ] Testei o app com `npm run tauri dev`
-- [ ] Atualizei a documentação (README / aquarium.md), se necessário
+- [ ] Atualizei a documentação (README / notesea.md), se necessário
 - [ ] Prints/GIF anexados para mudanças visuais

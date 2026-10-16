@@ -10,7 +10,7 @@ use tauri::{App, AppHandle, Emitter, Manager, WindowEvent};
 const MAIN: &str = "main";
 /// Evento ouvido pelo front para abrir o modal de captura.
 const OPEN_CAPTURE: &str = "open-capture";
-/// Atalho de captura usado quando o aquário não define outro.
+/// Atalho de captura usado quando a pasta não define outro.
 pub const DEFAULT_SHORTCUT: &str = "Ctrl+Shift+Space";
 
 /// Atalho de captura registrado no momento.
@@ -49,11 +49,11 @@ pub fn setup(app: &mut App) -> tauri::Result<()> {
 
 fn setup_tray(app: &App) -> tauri::Result<()> {
     let capture = MenuItem::with_id(app, "capture", "Capturar ideia", true, None::<&str>)?;
-    let open = MenuItem::with_id(app, "open", "Abrir Aquarium", true, None::<&str>)?;
+    let open = MenuItem::with_id(app, "open", "Abrir Notesea", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Sair", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&capture, &open, &quit])?;
     let mut tray = TrayIconBuilder::with_id("main")
-        .tooltip("Aquarium")
+        .tooltip("Notesea")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {

@@ -4,7 +4,7 @@ A camada de uma nota (`depth` no frontmatter) **nunca é escolhida pelo usuário
 
 ## Sinais
 
-Registrados no índice local (`.aquarium/index.db`, tabela `signals`), por `id` da nota:
+Registrados no índice local (`.notesea/index.db`, tabela `signals`), por `id` da nota:
 
 | Sinal | Quando |
 | --- | --- |

@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/logo/aquarium-logo.png" alt="Aquarium" width="420">
+  <img src="assets/logo/notesea-logo.png" alt="Notesea" width="420">
 </p>
 
-Ideias e estudo que ganham profundidade. Veja [aquarium.md](aquarium.md) para a visão do projeto.
+Ideias e estudo que ganham profundidade. Veja [notesea.md](notesea.md) para a visão do projeto.
 
 ## Rodando localmente
 

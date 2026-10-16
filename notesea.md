@@ -1,12 +1,16 @@
-# Aquarium — ideias e estudo que ganham profundidade
+# Notesea — ideias e estudo que ganham profundidade
 
 Oct 15, 2026 · @Vitor
+
+## Novo nome: Notesea (16 out 2026)
+
+O projeto se chamava **Aquarium** e passou a se chamar **Notesea**, para refletir o foco em anotações. Só o nome mudou; o visual com a temática de aquário continua. O identificador do app virou `com.vitorgalache.notesea` e a pasta de metadados virou `.notesea/`; o app migra sozinho a pasta `.aquarium/` e a última pasta aberta da versão anterior.
 
 ## Mudança de direção (16 out 2026)
 
 Usando o app até a tarefa 10, os conceitos de **cardume**, **desenvolver ideia** (triagem) e camadas de profundidade deixaram a experiência confusa e pouco intuitiva. A partir de agora:
 
-- **Foco:** o Aquarium é, antes de tudo, um **app de anotações**. A prioridade é deixar a criação e a edição de notas boas: captura rápida, editor Markdown agradável, busca e organização simples.
+- **Foco:** o Notesea é, antes de tudo, um **app de anotações**. A prioridade é deixar a criação e a edição de notas boas: captura rápida, editor Markdown agradável, busca e organização simples.
 - **Tema só na aparência:** a temática de aquário continua (paleta, tipografia, animações, nomes leves), mas não pode atrapalhar nem impor fluxos ao uso. Nada de passos obrigatórios ou conceitos que o usuário precise aprender.
 - **Pausados:** cardumes, correntes, fluxo guiado de "desenvolver ideia", profundidade como estado da nota e maré de estudo saem do roadmap por enquanto. O código existente pode ser simplificado ou escondido da UI; podem voltar depois, se fizerem sentido, como recursos opcionais.
 - **Mantidos:** dados em arquivos Markdown locais, captura sem atrito, leve e calmo.
@@ -121,7 +125,7 @@ Sem terminais embutidos, o app fica mais leve, e o Tauri passa a ser uma opção
 
 ## Ideia anterior descartada
 
-A primeira versão do Aquarium era uma IDE de orquestração de agentes inspirada no [Orca](https://github.com/stablyai/orca) e no [Alethe](https://github.com/Kc1t/alethe-agents). Foi descartada por ser complexa demais para começar, difícil de visualizar e, no fim, uma cópia mais simples do que já existe. A metáfora do aquário foi mantida.
+A primeira versão do projeto (ainda como Aquarium) era uma IDE de orquestração de agentes inspirada no [Orca](https://github.com/stablyai/orca) e no [Alethe](https://github.com/Kc1t/alethe-agents). Foi descartada por ser complexa demais para começar, difícil de visualizar e, no fim, uma cópia mais simples do que já existe. A metáfora do aquário foi mantida.
 
 ## Próximos passos: design e fluxos
 

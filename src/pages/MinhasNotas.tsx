@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "../components/Button";
 import { FileIcon, FolderIcon, NewFileIcon } from "../components/Icons";
-import { captureIdea } from "../lib/aquarium";
+import { captureIdea } from "../lib/vault";
 import { countNotes, folderDir, notesLabel, type Folder } from "../lib/tree";
 
 type Props = {
@@ -27,7 +27,7 @@ const formatDate = (modified: number) =>
 const grid = "grid grid-cols-[minmax(0,1fr)_120px_120px] gap-4";
 
 /** Conteúdo da pasta atual, como num explorador de arquivos. */
-export function MeuAquario({
+export function MinhasNotas({
   root,
   folder,
   indexing,

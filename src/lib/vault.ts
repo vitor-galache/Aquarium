@@ -3,35 +3,35 @@ import { listen } from "@tauri-apps/api/event";
 
 export type Theme = "sistema" | "claro" | "escuro";
 
-/** Configurações do aquário, gravadas em `.aquarium/config.json`. */
-export type AquariumConfig = {
+/** Configurações da pasta de notas, gravadas em `.notesea/config.json`. */
+export type VaultConfig = {
   version: number;
   /** Atalho global no formato do Tauri (ex.: `Ctrl+Shift+Space`). */
   captureShortcut: string;
   theme: Theme;
 };
 
-export type Aquarium = {
+export type Vault = {
   path: string;
   noteCount: number;
   isNew: boolean;
-  config: AquariumConfig;
+  config: VaultConfig;
 };
 
 export type Startup = {
   suggestedPath: string | null;
-  aquarium: Aquarium | null;
+  vault: Vault | null;
   error: string | null;
 };
 
 export const startup = () => invoke<Startup>("startup");
 
-export const openAquarium = (path: string) =>
-  invoke<Aquarium>("open_aquarium", { path });
+export const openVault = (path: string) =>
+  invoke<Vault>("open_vault", { path });
 
 /** Valida e grava as configurações; falha se o atalho estiver em uso. */
-export const saveConfig = (config: AquariumConfig) =>
-  invoke<AquariumConfig>("save_config", { config });
+export const saveConfig = (config: VaultConfig) =>
+  invoke<VaultConfig>("save_config", { config });
 
 /** Aplica o tema no documento; `sistema` deixa a media query decidir. */
 export const applyTheme = (theme: Theme) => {
@@ -113,7 +113,7 @@ export type NoteSummary = {
   depth: Depth;
   corrente: string | null;
   cardume: string | null;
-  /** Subpasta relativa ao aquário (`""` na raiz). */
+  /** Subpasta relativa à pasta de notas (`""` na raiz). */
   folder: string;
   tags: string[];
   created: string;
@@ -165,7 +165,7 @@ export type SearchHit = {
 export const searchNotes = (query: string) =>
   invoke<SearchHit[]>("search_notes", { query });
 
-/** Subpastas do aquário (relativas, com `/`), inclusive vazias. */
+/** Subpastas da pasta de notas (relativas, com `/`), inclusive vazias. */
 export const listFolders = () => invoke<string[]>("list_folders");
 
 /** Cria a pasta `name` dentro de `parent`; devolve o caminho relativo. */

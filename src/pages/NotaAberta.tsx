@@ -21,7 +21,7 @@ import {
   saveNote,
   type Note,
   type NoteSummary,
-} from "../lib/aquarium";
+} from "../lib/vault";
 
 /** Ações de arquivo vindas do explorador sobre a nota aberta. */
 export type NotaAbertaHandle = {
@@ -91,7 +91,7 @@ export function NotaAberta({ ref, path, onBack, onOpenNote }: Props) {
     };
   }, [path]);
 
-  // Notas do aquário para o autocomplete e para abrir `[[links]]`.
+  // Notas da pasta para o autocomplete e para abrir `[[links]]`.
   useEffect(() => {
     listNotes().then(
       (list) => (notes.current = list),
@@ -268,8 +268,8 @@ export function NotaAberta({ ref, path, onBack, onOpenNote }: Props) {
           className="flex items-center justify-between gap-4 rounded-card border border-line bg-highlight px-4 py-3 text-base text-ink"
         >
           <span>
-            Esta nota foi alterada fora do Aquarium. Recarregue para ver a
-            versão do arquivo — seu texto continua no histórico (⌘Z / Ctrl+Z).
+            Esta nota foi alterada fora do Notesea. Recarregue para ver a versão
+            do arquivo — seu texto continua no histórico (⌘Z / Ctrl+Z).
           </span>
           <Button onClick={() => void reload()}>Recarregar</Button>
         </div>
