@@ -2,13 +2,7 @@ import { useState } from "react";
 import { Button } from "../components/Button";
 import { FileIcon, FolderIcon, NewFileIcon } from "../components/Icons";
 import { captureIdea } from "../lib/aquarium";
-import {
-  countNotes,
-  DEPTHS,
-  folderDir,
-  notesLabel,
-  type Folder,
-} from "../lib/tree";
+import { countNotes, folderDir, notesLabel, type Folder } from "../lib/tree";
 
 type Props = {
   root: string;
@@ -30,7 +24,7 @@ const dateFormat = new Intl.DateTimeFormat("pt-BR", {
 const formatDate = (modified: number) =>
   modified > 0 ? dateFormat.format(new Date(modified)) : "";
 
-const grid = "grid grid-cols-[minmax(0,1fr)_140px_120px] gap-4";
+const grid = "grid grid-cols-[minmax(0,1fr)_120px_120px] gap-4";
 
 /** Conteúdo da pasta atual, como num explorador de arquivos. */
 export function MeuAquario({
@@ -143,7 +137,7 @@ export function MeuAquario({
             className={`${grid} pr-8 pb-2 pl-[46px] text-2xs font-semibold tracking-widest text-muted uppercase`}
           >
             <span>Nome</span>
-            <span>Profundidade</span>
+            <span>Itens</span>
             <span className="text-right">Modificado</span>
           </div>
           <ul className="flex flex-col gap-0.5 px-5 pb-6">
@@ -187,12 +181,7 @@ export function MeuAquario({
                         )}
                       </span>
                     </span>
-                    <span className="flex items-center gap-2 text-sm text-ink/80">
-                      <span
-                        className={`size-[7px] rounded-full ${DEPTHS[item.note.depth].dot}`}
-                      />
-                      {DEPTHS[item.note.depth].label}
-                    </span>
+                    <span />
                     <span className="text-right font-mono text-xs text-muted">
                       {formatDate(item.note.modified)}
                     </span>

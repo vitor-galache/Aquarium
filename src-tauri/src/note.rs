@@ -670,8 +670,19 @@ fn duplicate(path: &Path) -> Result<Note, String> {
 }
 
 /// Move a nota para a lixeira do sistema operacional (recuperável por lá).
-fn trash(path: &Path) -> Result<(), String> {
-    trash::delete(path).map_err(|e| format!("Não foi possível mover para a lixeira: {e}"))
+///
+/// No macOS usa o `NSFileManager`: o padrão (via Finder) é lento e pode pedir
+/// permissão de automação, o que travava o app.
+pub(crate) fn trash(path: &Path) -> Result<(), String> {
+    #[allow(unused_mut)]
+    let mut ctx = trash::TrashContext::default();
+    #[cfg(target_os = "macos")]
+    {
+        use trash::macos::{DeleteMethod, TrashContextExtMacos};
+        ctx.set_delete_method(DeleteMethod::NsFileManager);
+    }
+    ctx.delete(path)
+        .map_err(|e| format!("Não foi possível mover para a lixeira: {e}"))
 }
 
 #[tauri::command]
@@ -693,7 +704,7 @@ pub fn duplicate_note(state: tauri::State<IndexState>, path: String) -> Result<N
 }
 
 #[tauri::command]
-pub fn trash_note(state: tauri::State<IndexState>, path: String) -> Result<(), String> {
+pub async fn trash_note(state: tauri::State<'_, IndexState>, path: String) -> Result<(), String> {
     trash(Path::new(&path))?;
     state.resync();
     Ok(())

@@ -9,12 +9,13 @@ import { NotaAberta, type NotaAbertaHandle } from "./pages/NotaAberta";
 import { Button } from "./components/Button";
 import { CaptureModal } from "./components/CaptureModal";
 import { SearchModal } from "./components/SearchModal";
-import { SettingsModal } from "./components/SettingsModal";
+import { Configuracoes } from "./pages/Configuracoes";
 import {
   applyTheme,
   createFolder,
   createNote,
   duplicateNote,
+  moveFolder,
   moveNote,
   trashFolder,
   renameNote,
@@ -158,6 +159,23 @@ function App() {
 
   const isOpen = (path: string) => view.kind === "nota" && view.path === path;
 
+  if (settings) {
+    return (
+      <Configuracoes
+        aquarium={aquarium}
+        onChange={(next) => {
+          if (next.path !== aquarium.path) {
+            setRefreshKey((k) => k + 1);
+            setFolder("");
+            setView({ kind: "aquario" });
+          }
+          setAquarium(next);
+        }}
+        onClose={() => setSettings(false)}
+      />
+    );
+  }
+
   return (
     <div className="flex h-screen w-screen overflow-hidden">
       <Sidebar
@@ -198,6 +216,21 @@ function App() {
             const moved = await moveNote(path, target);
             if (isOpen(path)) setView({ kind: "nota", path: moved });
           })
+        }
+        onMoveFolder={(source, parent) =>
+          moveFolder(source, parent).then(
+            (moved) => {
+              // A pasta aberta (ou a de cima) segue para o novo lugar.
+              if (
+                crumbFolder === source ||
+                crumbFolder.startsWith(`${source}/`)
+              )
+                setFolder(moved + crumbFolder.slice(source.length));
+              setRefreshKey((k) => k + 1);
+            },
+            (error: unknown) =>
+              window.console.error("Não foi possível mover a pasta:", error),
+          )
         }
         onTrashFolder={(target) => {
           // A nota aberta dentro da pasta vai junto: grava antes e sai dela.
@@ -269,19 +302,6 @@ function App() {
         <SearchModal
           onOpenNote={(path) => setView({ kind: "nota", path })}
           onClose={() => setSearching(false)}
-        />
-      )}
-      {settings && (
-        <SettingsModal
-          aquarium={aquarium}
-          onChange={(next) => {
-            if (next.path !== aquarium.path) {
-              setRefreshKey((k) => k + 1);
-              setView({ kind: "aquario" });
-            }
-            setAquarium(next);
-          }}
-          onClose={() => setSettings(false)}
         />
       )}
       {capturing && (
