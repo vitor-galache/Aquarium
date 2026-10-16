@@ -1,87 +1,23 @@
 <!doctype html>
 <html lang="pt-BR">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" href="assets/icon.svg" />
-    <link rel="stylesheet" href="style.css" />
-    <title>Notesea</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/logo.svg" />
+    <title>notesea</title>
     <meta
       name="description"
       content="App de anotações leve e calmo, com notas em Markdown no seu computador."
     />
+    <script>
+      try {
+        const t = localStorage.getItem("notesea-site-tema");
+        if (t) document.documentElement.dataset.theme = t;
+      } catch {}
+    </script>
   </head>
   <body>
-    <header>
-      <a class="logo" href="index.html"
-        ><img src="assets/icon.svg" alt="" />Notesea</a
-      >
-      <nav>
-        <a href="docs.html">Docs</a>
-        <a href="novidades.html">Novidades</a>
-        <a href="https://github.com/vitor-galache/notesea">GitHub</a>
-      </nav>
-    </header>
-    <section class="hero">
-      <h1>Suas ideias, num aquário calmo</h1>
-      <p>
-        Notesea é um app de anotações leve. Capture em segundos e escreva em
-        Markdown, com as notas salvas como arquivos no seu computador.
-      </p>
-      <a
-        id="download"
-        class="download"
-        href="https://github.com/vitor-galache/notesea/releases/latest"
-        >Baixar</a
-      >
-      <div class="others">
-        macOS, Windows e Linux ·
-        <a href="https://github.com/vitor-galache/notesea/releases/latest"
-          >todas as versões</a
-        >
-      </div>
-      <div class="window" aria-hidden="true">
-        <div class="bar"><span></span><span></span><span></span></div>
-        <div class="body">
-          <aside>
-            <div>Estudos</div>
-            <div class="active">Inglês</div>
-            <div>Ideias</div>
-          </aside>
-          <article>
-            <h3>Phrasal verbs da semana</h3>
-            <p>- <b>look up</b>: procurar (no dicionário)</p>
-            <p>- <b>figure out</b>: entender, descobrir</p>
-            <p>- [ ] revisar na sexta</p>
-          </article>
-        </div>
-      </div>
-    </section>
-    <main>
-      <div class="features">
-        <div>
-          <h3>Captura rápida</h3>
-          <p>
-            Um atalho global abre a captura de qualquer lugar. Escreveu, salvou.
-          </p>
-        </div>
-        <div>
-          <h3>Markdown local</h3>
-          <p>
-            Cada nota é um arquivo <code>.md</code> numa pasta sua. Sem conta,
-            sem nuvem.
-          </p>
-        </div>
-        <div>
-          <h3>Leve e calmo</h3>
-          <p>
-            Interface limpa com tema de aquário, feita para escrever sem
-            distração.
-          </p>
-        </div>
-      </div>
-    </main>
-    <footer>Notesea · open source · suas notas ficam no seu computador</footer>
-    <script src="main.js"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

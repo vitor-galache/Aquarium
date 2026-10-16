@@ -23,6 +23,6 @@
     /* Alias usado pelos componentes do shadcn/ui */
     "paths": { "@/*": ["./src/*"] }
   },
-  "include": ["src"],
+  "include": ["src", "site/src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
