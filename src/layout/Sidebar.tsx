@@ -16,6 +16,7 @@ type Props = {
   onNewNote: () => void;
   onOpenNote: (path: string) => void;
   onHome: () => void;
+  onSettings: () => void;
 };
 
 const RECENT_LIMIT = 15;
@@ -32,6 +33,7 @@ export function Sidebar({
   onNewNote,
   onOpenNote,
   onHome,
+  onSettings,
 }: Props) {
   const [status, setStatus] = useState<IndexStatus | null>(null);
   const [notes, setNotes] = useState<NoteSummary[]>([]);
@@ -130,6 +132,14 @@ export function Sidebar({
           </ul>
         )}
       </div>
+
+      <button
+        type="button"
+        onClick={onSettings}
+        className="cursor-pointer rounded-control px-2 py-1.5 text-left text-md text-muted transition-colors hover:bg-canvas hover:text-ink focus-visible:outline-2 focus-visible:outline-brand-light"
+      >
+        Configurações
+      </button>
     </nav>
   );
 }

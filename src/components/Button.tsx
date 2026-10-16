@@ -3,7 +3,7 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 type Variant = "primary" | "secondary";
 
 const variants: Record<Variant, string> = {
-  primary: "border-brand bg-brand text-white hover:bg-ink hover:border-ink",
+  primary: "border-brand bg-brand text-white hover:bg-abyss hover:border-abyss",
   secondary: "border-line bg-surface text-brand hover:bg-highlight",
 };
 
