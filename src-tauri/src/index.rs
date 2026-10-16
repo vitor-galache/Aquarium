@@ -314,15 +314,17 @@ pub struct NoteSummary {
     corrente: Option<String>,
     cardume: Option<String>,
     created: String,
+    /// Última edição do arquivo, em milissegundos desde a época Unix.
+    modified: i64,
 }
 
-/// Notas indexadas, das mais recentes para as mais antigas.
+/// Notas indexadas, da última editada para a mais antiga.
 pub fn notes(conn: &Connection) -> Result<Vec<NoteSummary>, String> {
     let err = |e: rusqlite::Error| e.to_string();
     let mut stmt = conn
         .prepare(
-            "SELECT path, title, excerpt, depth, corrente, cardume, created
-             FROM notes ORDER BY created DESC, title",
+            "SELECT path, title, excerpt, depth, corrente, cardume, created, mtime
+             FROM notes ORDER BY mtime DESC, title",
         )
         .map_err(err)?;
     stmt.query_map([], |r| {
@@ -334,6 +336,7 @@ pub fn notes(conn: &Connection) -> Result<Vec<NoteSummary>, String> {
             corrente: r.get(4)?,
             cardume: r.get(5)?,
             created: r.get(6)?,
+            modified: r.get(7)?,
         })
     })
     .map_err(err)?
