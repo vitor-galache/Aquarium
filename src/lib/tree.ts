@@ -1,0 +1,71 @@
+import type { Depth, NoteSummary } from "./aquarium";
+
+/** Pasta do explorador, montada a partir do campo `folder` do índice. */
+export type Folder = {
+  /** Caminho relativo ao aquário, com `/` (`""` na raiz). */
+  path: string;
+  name: string;
+  folders: Folder[];
+  notes: NoteSummary[];
+};
+
+const byName = (a: string, b: string) =>
+  a.localeCompare(b, "pt-BR", { sensitivity: "base", numeric: true });
+
+export function buildTree(notes: NoteSummary[]): Folder {
+  const root: Folder = { path: "", name: "", folders: [], notes: [] };
+  for (const note of notes) {
+    let folder = root;
+    for (const part of note.folder.split("/").filter(Boolean)) {
+      const path = folder.path ? `${folder.path}/${part}` : part;
+      let child = folder.folders.find((f) => f.path === path);
+      if (!child) {
+        child = { path, name: part, folders: [], notes: [] };
+        folder.folders.push(child);
+      }
+      folder = child;
+    }
+    folder.notes.push(note);
+  }
+  const sort = (folder: Folder) => {
+    folder.folders.sort((a, b) => byName(a.name, b.name));
+    folder.notes.sort((a, b) => byName(a.title, b.title));
+    folder.folders.forEach(sort);
+  };
+  sort(root);
+  return root;
+}
+
+/** `a/b/c` → `["a", "a/b", "a/b/c"]`. */
+export const ancestors = (folder: string) =>
+  folder
+    .split("/")
+    .filter(Boolean)
+    .map((_, i, parts) => parts.slice(0, i + 1).join("/"));
+
+export const findFolder = (root: Folder, path: string): Folder | null => {
+  let folder: Folder | undefined = root;
+  for (const part of ancestors(path)) {
+    folder = folder.folders.find((f) => f.path === part);
+    if (!folder) return null;
+  }
+  return folder;
+};
+
+export const countNotes = (folder: Folder): number =>
+  folder.notes.length +
+  folder.folders.reduce((sum, child) => sum + countNotes(child), 0);
+
+export const notesLabel = (n: number) => (n === 1 ? "1 nota" : `${n} notas`);
+
+/** Nome e cor (classe de fundo) de cada camada de profundidade. */
+export const DEPTHS: Record<Depth, { label: string; dot: string }> = {
+  superficie: { label: "Superfície", dot: "bg-foam" },
+  "meia-agua": { label: "Meia-água", dot: "bg-brand-light" },
+  fundo: { label: "Fundo", dot: "bg-brand" },
+  lodo: { label: "Lodo", dot: "bg-muted" },
+};
+
+/** Pasta do aquário no disco, para gravar notas nela. */
+export const folderDir = (root: string, folder: string) =>
+  folder ? `${root}/${folder}` : root;

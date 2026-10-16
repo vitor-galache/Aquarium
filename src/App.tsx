@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Sidebar } from "./layout/Sidebar";
+import { TopBar } from "./layout/TopBar";
+import { ancestors, buildTree, findFolder, folderDir } from "./lib/tree";
+import { useNotes } from "./lib/useNotes";
 import { MeuAquario } from "./pages/MeuAquario";
 import { PrimeiroAcesso } from "./pages/PrimeiroAcesso";
 import { NotaAberta, type NotaAbertaHandle } from "./pages/NotaAberta";
@@ -7,7 +10,6 @@ import { Button } from "./components/Button";
 import { CaptureModal } from "./components/CaptureModal";
 import { SearchModal } from "./components/SearchModal";
 import { SettingsModal } from "./components/SettingsModal";
-import { TitleBar } from "./components/TitleBar";
 import {
   applyTheme,
   createNote,
@@ -25,6 +27,9 @@ type View =
   | { kind: "nota"; path: string }
   | { kind: "em-breve"; title: string };
 
+const rootName = (path: string) =>
+  path.split(/[\\/]/).filter(Boolean).pop() ?? path;
+
 function App() {
   const [initial, setInitial] = useState<Startup | null>(null);
   const [aquarium, setAquarium] = useState<Aquarium | null>(null);
@@ -35,6 +40,9 @@ function App() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [focus, setFocus] = useState(false);
   const openNote = useRef<NotaAbertaHandle>(null);
+  /** Pasta aberta no explorador (`""` na raiz). */
+  const [folder, setFolder] = useState("");
+  const index = useNotes(aquarium?.path ?? "", refreshKey);
   const focused = focus && view.kind === "nota";
 
   useEffect(() => {
@@ -91,7 +99,7 @@ function App() {
   const newNote = async () => {
     try {
       const note = await createNote(
-        aquarium.path,
+        folderDir(aquarium.path, current?.path ?? ""),
         "Nova nota",
         "# Nova nota\n",
       );
@@ -115,18 +123,39 @@ function App() {
     }
   };
 
+  const tree = buildTree(index.notes ?? []);
+  const current = findFolder(tree, folder) ?? tree;
+  const openedNote =
+    view.kind === "nota"
+      ? index.notes?.find((n) => n.path === view.path)
+      : undefined;
+  const crumbFolder = openedNote ? openedNote.folder : current.path;
+  const goTo = (path: string) => {
+    setFolder(path);
+    setView({ kind: "aquario" });
+  };
+  const crumbs = [
+    { label: rootName(aquarium.path), onClick: () => goTo("") },
+    ...ancestors(crumbFolder).map((path) => ({
+      label: path.split("/").pop() ?? path,
+      onClick: () => goTo(path),
+    })),
+    ...(view.kind === "nota" ? [{ label: openedNote?.title || "Nota" }] : []),
+  ];
+
   const isOpen = (path: string) => view.kind === "nota" && view.path === path;
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      <TitleBar />
       {!focused && (
         <Sidebar
-          refreshKey={refreshKey}
+          root={aquarium.path}
+          tree={tree}
+          currentFolder={crumbFolder}
           activePath={view.kind === "nota" ? view.path : null}
           onNewNote={() => void newNote()}
+          onOpenFolder={goTo}
           onOpenNote={(path) => setView({ kind: "nota", path })}
-          onHome={() => setView({ kind: "aquario" })}
           onSettings={() => setSettings(true)}
           onRename={(path, title) =>
             fileAction(path, async () => {
@@ -148,41 +177,52 @@ function App() {
           }
         />
       )}
-      <main className="flex flex-1 flex-col gap-6 overflow-y-auto p-8">
-        {view.kind === "nota" ? (
-          <NotaAberta
-            key={view.path}
-            ref={openNote}
-            path={view.path}
-            focus={focused}
-            onFocusChange={setFocus}
-            onBack={() => setView({ kind: "aquario" })}
-            onOpenNote={(path) => {
-              setRefreshKey((k) => k + 1);
-              setView({ kind: "nota", path });
-            }}
-          />
-        ) : view.kind === "em-breve" ? (
-          <div className="flex flex-col items-start gap-4">
-            <Button
-              variant="secondary"
-              onClick={() => setView({ kind: "aquario" })}
-            >
-              ← Notas
-            </Button>
-            <h1 className="font-display text-heading font-semibold">
-              {view.title}
-            </h1>
-            <p className="text-md text-muted">Em breve.</p>
-          </div>
-        ) : (
-          <MeuAquario
-            aquarium={aquarium}
-            onCapture={() => setCapturing(true)}
-            onOpenNote={(path) => setView({ kind: "nota", path })}
-            onSearch={() => setSearching(true)}
-          />
+      <main className="flex min-w-0 flex-1 flex-col">
+        {!focused && (
+          <TopBar crumbs={crumbs} onSearch={() => setSearching(true)} />
         )}
+        <div
+          className={`flex flex-1 flex-col overflow-y-auto ${view.kind === "aquario" ? "" : "gap-6 p-8"}`}
+        >
+          {view.kind === "nota" ? (
+            <NotaAberta
+              key={view.path}
+              ref={openNote}
+              path={view.path}
+              focus={focused}
+              onFocusChange={setFocus}
+              onBack={() => setView({ kind: "aquario" })}
+              onOpenNote={(path) => {
+                setRefreshKey((k) => k + 1);
+                setView({ kind: "nota", path });
+              }}
+            />
+          ) : view.kind === "em-breve" ? (
+            <div className="flex flex-col items-start gap-4">
+              <Button
+                variant="secondary"
+                onClick={() => setView({ kind: "aquario" })}
+              >
+                ← Notas
+              </Button>
+              <h1 className="font-display text-heading font-semibold">
+                {view.title}
+              </h1>
+              <p className="text-md text-muted">Em breve.</p>
+            </div>
+          ) : (
+            <MeuAquario
+              root={aquarium.path}
+              folder={index.notes ? current : null}
+              indexing={index.indexing}
+              error={index.error}
+              onRetry={index.reload}
+              onOpenFolder={goTo}
+              onOpenNote={(path) => setView({ kind: "nota", path })}
+              onCaptured={() => setRefreshKey((k) => k + 1)}
+            />
+          )}
+        </div>
       </main>
       {searching && (
         <SearchModal
