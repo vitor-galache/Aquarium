@@ -37,4 +37,5 @@ panic = "abort"
 strip = true
 
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-autostart = "2"
 tauri-plugin-global-shortcut = "2"

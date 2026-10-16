@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import { CaptureWindow } from "./components/CaptureWindow";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./index.css";
 
@@ -14,7 +15,7 @@ document.addEventListener("contextmenu", (event) => {
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <TooltipProvider delayDuration={400}>
-      <App />
+      {window.location.hash === "#capture" ? <CaptureWindow /> : <App />}
     </TooltipProvider>
   </React.StrictMode>,
 );
