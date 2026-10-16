@@ -14,7 +14,7 @@ type Props = {
   aquarium: Aquarium;
   onCapture: () => void;
   onOpenNote: (path: string) => void;
-  onTriage: () => void;
+  onDevelop: () => void;
   onRefind: () => void;
 };
 
@@ -65,7 +65,7 @@ export function MeuAquario({
   aquarium,
   onCapture,
   onOpenNote,
-  onTriage,
+  onDevelop,
   onRefind,
 }: Props) {
   const { path } = aquarium;
@@ -150,8 +150,8 @@ export function MeuAquario({
             </select>
           )}
           {has("superficie") && (
-            <Button variant="secondary" onClick={onTriage}>
-              Fazer triagem
+            <Button variant="secondary" onClick={onDevelop}>
+              Desenvolver ideias
             </Button>
           )}
           {has("lodo") && (
